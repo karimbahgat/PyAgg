@@ -12,8 +12,8 @@ def random_n(minval, maxval, n=1):
 
 # load the shapes in advance before timing
 import geovis
-#sf = geovis.shapefile_fork.Reader("D:/Test Data/cshapes/cshapes.shp")
-sf = geovis.shapefile_fork.Reader("/Volumes/karim/Desktop/Current Projects/Tanzania predictions/GIS Data/Context Data/Natural/PETRODATA/Petrodata_Onshore_V1.2.shp")
+sf = geovis.shapefile_fork.Reader("D:/Test Data/cshapes/cshapes.shp")
+#sf = geovis.shapefile_fork.Reader("/Volumes/karim/Desktop/Current Projects/Tanzania predictions/GIS Data/Context Data/Natural/PETRODATA/Petrodata_Onshore_V1.2.shp")
 #sf = geovis.shapefile_fork.Reader("/Volumes/karim/Desktop/Current Projects/Tanzania predictions/GIS Data/Context Data/Natural/dams/GRanD_dams_v1_1.shp")
 #sf = geovis.shapefile_fork.Reader("/Volumes/karim/Desktop/Current Projects/Tanzania predictions/GIS Data/Event Data/ACLED/1997-2013/acled.shp")
 shapes = [shape for shape in sf.iterShapes()]
@@ -41,7 +41,7 @@ def drawpoint(point):
 
 # Begin #
 
-import rendererclass7plussplussandbezier as pyagg
+import rendererclass9zoomerrorfixed as pyagg
 renderer = pyagg.Canvas(1000,500, background=random_n(0,222,n=3) )
 renderer.geographic_space()
 xleft,ybottom,xright,ytop = sf.bbox
@@ -65,7 +65,7 @@ for shape in shapes:
         drawpoint(point)
 print time.clock()-t,"seconds"
 
-renderer.save("/Users/karim/Desktop/offshore.png")
+#renderer.save("/Users/karim/Desktop/offshore.png")
 renderer.view()
 
 
