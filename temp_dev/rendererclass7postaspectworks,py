@@ -197,28 +197,23 @@ class AggRenderer:
         yheight = max(y2y)-min(y2y)
 
         # constrain the coordinate view ratio to the screen ratio, shrinking the coordinate space to ensure that it is fully contained inside the image
+        centered = affine.Affine.identity()
         if lock_ratio:
-            coordxratio = xwidth/float(yheight)
-            screenxratio = self.width/float(self.height)
-            if coordxratio > 1:
-                if screenxratio > coordxratio:
-                    xwidth = yheight * screenxratio
-                else:
-                    yheight = xwidth / float(screenxratio)
-                print xwidth,yheight
-            elif coordxratio < 1:
-                if screenxratio > coordxratio:
-                    if screenxratio > 1:
-                        xwidth = yheight * screenxratio
-                    else:
-                        xwidth,yheight = yheight,xwidth
-                        yheight = xwidth / float(screenxratio)
-                else:
-                    xwidth,yheight = yheight,xwidth
-                    yheight = xwidth / float(screenxratio)
-            
-            # maybe move the center of focus to middle of coordinate space if view ratio has been constrained
-            # ...
+            # make coords same proportions as screen
+            screenxratio = self.width / float(self.height)
+            newyheight = yheight
+            newxwidth = yheight * screenxratio
+            # ensure that altered coords do not shrink the original coords
+            diffratio = 1.0
+            if newxwidth < xwidth: diffratio = xwidth / float(newxwidth)
+            elif newyheight < yheight: diffratio = yheight / float(newyheight)
+            newxwidth *= diffratio
+            newyheight *= diffratio
+            # move the center of focus to middle of coordinate space if view ratio has been constrained
+            xoff = (newxwidth - xwidth) / 2.0
+            yoff = (newyheight - yheight) / 2.0
+            centered *= affine.Affine.translate(xoff, yoff)
+            xwidth,yheight = newxwidth,newyheight
             
         # Note: The sequence of matrix multiplication is important and sensitive.
 
@@ -239,7 +234,7 @@ class AggRenderer:
         flipped *= affine.Affine.flip(xflip,yflip)
 
         # calculate the final coefficients and set as the drawtransform
-        transcoeffs = (scaled * flipped).coefficients
+        transcoeffs = (scaled * flipped * centered).coefficients
         self.transcoeffs = transcoeffs
         a,b,c,d,e,f = transcoeffs
         for x,y in grouper([100,100, 900,100, 900,500, 100,500, 100,100], 2):
@@ -441,12 +436,12 @@ if __name__ == "__main__":
 
     # initiate
     renderer = AggRenderer()
-    renderer.new_image(1000, 600, random_n(0,222,n=3))
-    renderer.coordinate_space([0, 0, 1000, 600], lock_ratio=True)
+    renderer.new_image(1000, 100, random_n(0,222,n=3))
+    renderer.coordinate_space([0, 0, 1000, 600], lock_ratio=False)
 
     # test zoom
-    renderer.zoom_units(per_cm=50)
-    renderer.coordinate_space([0,0,1763.8888697800926,1058.3333218680557])
+    #renderer.zoom_units(per_cm=50)
+    #renderer.coordinate_space([0,0,1763.8888697800926,1058.3333218680557])
 
     # polygon with hole
     renderer.draw_polygon(coords=[100,100, 900,100, 900,500, 100,500, 100,100],

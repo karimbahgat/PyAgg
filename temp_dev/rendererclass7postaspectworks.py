@@ -8,44 +8,71 @@ import affine
 
 # Define some globals
 import sys, os
-platforms = {"win32":"windows",
+OSSYSTEM = {"win32":"windows",
              "darwin":"apple",
              "linux":"linux",
-             "linux2":"linux"}
-OSSYSTEM = platforms[sys.platform]
-
+             "linux2":"linux"}[sys.platform]
+SYSFONTFOLDERS = dict([("windows","C:/Windows/Fonts/")])
+FONTFILENAMES = dict([("default", "TIMES.TTF"),
+                        ("times new roman","TIMES.TTF"),
+                        ("arial","ARIAL.TTF")])
 
 
 # Some convenience functions
 import itertools
+
 def grouper(iterable, n):
     args = [iter(iterable)] * n
     return itertools.izip_longest(fillvalue=None, *args)
 
+def pairwise(iterable):
+    a, b = itertools.tee(iterable)
+    next(b, None)
+    return itertools.izip(a, b)
+
+def bbox_resize_ratio(bbox, xratio, yratio):
+    # remember old
+    xleft,ytop,xright,ybottom = bbox
+    x2x = (xleft,xright)
+    y2y = (ybottom,ytop)
+    midx = sum(x2x) / 2.0
+    midy = sum(y2y) / 2.0
+    halfxwidth = (max(x2x)-min(x2x)) / 2.0
+    halfyheight = (max(y2y)-min(y2y)) / 2.0
+    # calculate new
+    xleft = midx - halfxwidth * xratio
+    xright = midx + halfxwidth * xratio
+    ytop = midy - halfyheight * yratio
+    ybottom = midy + halfyheight * yratio
+    return [xleft,ytop,xright,ybottom]
+
+def bbox_resize_dimensions(bbox, newwidth, newheight):
+    xleft,ytop,xright,ybottom = bbox
+    x2x = (xleft,xright)
+    y2y = (ytop,ybottom)
+    xwidth = max(x2x) - min(x2x)
+    yheight = max(y2y) - min(y2y)
+    xratio = newwidth / float(xwidth)
+    yratio = newheight / float(yheight)
+    return bbox_resize_ratio(bbox, xratio, yratio)
+
+def bbox_offset(bbox, xoff, yoff):
+    pass
+
+
 
 
 # Main class
-class AggRenderer:
+class Canvas:
     """
-    This class is used to draw each feature with aggdraw as long as 
-    it is given instructions via a color/size/options dictionary.
+    This class is a painter's canvas on which to draw with aggdraw.
     """
     
-    def __init__(self):
-        self.sysfontfolders = dict([("windows","C:/Windows/Fonts/")])
-        self.fontfilenames = dict([("default", "TIMES.TTF"),
-                                   ("times new roman","TIMES.TTF"),
-                                   ("arial","ARIAL.TTF")])
-        
-    def new_image(self, width, height, background=None, mode="RGBA"):
-        """
-        This must be called before doing any rendering.
-        Note: this replaces any previous image drawn on so be sure to
-        retrieve the old image before calling it again to avoid losing work
-        """
+    def __init__(self, width, height, background=None, mode="RGBA"):
         self.img = PIL.Image.new(mode, (width, height), background)
         self.width,self.height = width,height
         self.drawer = aggdraw.Draw(self.img)
+        self.pixel_space()
 
 
 
@@ -105,50 +132,81 @@ class AggRenderer:
     def draw_figureplot(self, image, bbox, xaxis, yaxis):
         # maybe by creating and drawing on images as subplots,
         # and then passing them in as figures that draw their
-        # own coordinate axes if specified and then paste themself. 
+        # own coordinate axes if specified and then paste themself.
+        # ... 
         pass
 
-    def zoom_units(self, per_cm, center=None):
+    @property
+    def coordspace_width(self):
+        xleft,ytop,xright,ybottom = self.coordspace_bbox
+        x2x = (xleft,xright)
+        xwidth = max(x2x)-min(x2x)
+        return xwidth
+
+    @property
+    def coordspace_height(self):
+        xleft,ytop,xright,ybottom = self.coordspace_bbox
+        y2y = (ybottom,ytop)
+        yheight = max(y2y)-min(y2y)
+        return yheight
+
+    @property
+    def coordspace_units(self):
+        # calculate pixels per unit etc
+        pixscm = 28.346457
+        widthcm = self.width / float(pixscm)
+        units = self.coordspace_width / float(widthcm)
+        return units       
+
+    def zoom_units(self, units, center=None):
         """
         if no given center, defaults to middle of previous zoom.
         
-        - level: how many coordinate units per screen cm at the new zoom level.
+        - units: how many coordinate units per screen cm at the new zoom level.
         
         """
         # calculate pixels per unit etc
-        unitscm = per_cm
+        unitscm = units
         cmsunit = 1 / float(unitscm)
         pixscm = 28.346457
         pixsunit = pixscm * cmsunit
         unitswidth = self.width / float(pixsunit) # use as the width of the bbox
         unitsheight = self.height / float(pixsunit) # use as the height of the bbox
-        print "just testing, not done: %s unitscm -> %s coorddims" %(unitscm, (unitswidth,unitsheight))
-        
-        #if center:
-        #    midx,midy = center
-        #    halfwidth = width / 2.0
-        #    halfheight = height / 2.0
-        #    bbox = [midx - halfwidth, midy - halfheight,
-        #            midx + halfwidth, midy + halfheight]
-        #else:
-        #    # expand/shrink the bbox from previous zoom level by the level factor
-        #    pass
-        # ...
-        pass
+        # zoom it
+        newbbox = bbox_resize_dimensions(self.coordspace_bbox,
+                                         newwidth=unitswidth,
+                                         newheight=unitsheight)
+        self.coordinate_space(*newbbox, lock_ratio=True)
 
-    def zoom_factor(self, bbox):
+    def zoom_factor(self, factor, center=None):
         """
-        Zooms x times of previous bbox.
+        Zooms x times of previous bbox. Positive values > 1 for in-zoom,
+        negative < -1 for out-zoom. 
         """
-        pass
+        if -1 < factor < 1:
+            raise Exception("Zoom error: Zoom factor must be higher than +1 or lower than -1.")
+        # positive zoom means bbox must be shrunk
+        if factor > 1: factor = 1 / float(factor)
+        # remove minus sign for negative zoom
+        elif factor <= -1: factor *= -1
+        # zoom it
+        newbbox = bbox_resize_ratio(self.coordspace_bbox,
+                           xratio=factor,
+                           yratio=factor)
+        self.coordinate_space(*newbbox, lock_ratio=True)
 
-    def zoom_bbox(self, bbox):
+    def zoom_bbox(self, xleft, ytop, xright, ybottom):
         """
         Essentially the same as using coord_space, but assumes that
         you only want to stay within the previous coordinate boundaries,
         so checks for this and also does not allow changing axis directions. 
         """
-        pass
+        oldxleft, oldytop, oldxright, oldybottom = self.coordspace_bbox
+        # ensure old and zoom axes go in same directions
+        if not (xleft < xright) == (oldxleft < oldxright) or not (ytop < ybottom) == (oldytop < oldybottom):
+            raise Exception("Zoom error: Zoom bbox must follow the same axis directions as the canvas' coordinate space.")
+        # zoom it
+        self.coordinate_space(xleft, ytop, xright, ybottom, lock_ratio=True)
 
     def pixel_space(self):
         """
@@ -156,29 +214,33 @@ class AggRenderer:
         so the user can easily draw directly to image pixel positions.
         """
         self.drawer.settransform()
+        self.coordspace_bbox = [0, 0, self.width, self.height]
+        self.coordspace_transform = (1, 0, 0,
+                                     0, 1, 0)
 
     def fraction_space(self):
         """
         Convenience method for setting the coordinate space to fractions,
         so the user can easily draw using relative fractions (0-1) of image.
         """
-        self.coordinate_space([0,0,1,1])
+        self.coordinate_space(*[0,0,1,1])
 
     def percent_space(self):
         """
         Convenience method for setting the coordinate space to percentages,
         so the user can easily draw coordinates as percentage (0-100) of image.
         """
-        self.coordinate_space([0,0,100,100])
+        self.coordinate_space(*[0,0,100,100])
 
     def geographic_space(self):
         """
         Convenience method for setting the coordinate space to geographic,
         so the user can easily draw coordinates as lat/long of world.
         """
-        self.coordinate_space([-180,90,180,-90], lock_ratio=True)
+        self.coordinate_space(*[-180,90,180,-90], lock_ratio=True)
 
-    def coordinate_space(self, bbox, lock_ratio=False):
+    def coordinate_space(self, xleft, ytop, xright, ybottom,
+                         lock_ratio=False):
         """
         Defines which areas of the screen represent which areas in the
         given drawing coordinates. Default is to draw directly with
@@ -190,35 +252,30 @@ class AggRenderer:
         """
 
         # basic info
-        xleft,ytop,xright,ybottom = bbox
+        bbox = xleft,ytop,xright,ybottom
         x2x = (xleft,xright)
         y2y = (ybottom,ytop)
         xwidth = max(x2x)-min(x2x)
         yheight = max(y2y)-min(y2y)
+        oldxwidth,oldyheight = xwidth,yheight
 
         # constrain the coordinate view ratio to the screen ratio, shrinking the coordinate space to ensure that it is fully contained inside the image
+        centered = affine.Affine.identity()
         if lock_ratio:
-            coordxratio = xwidth/float(yheight)
-            screenxratio = self.width/float(self.height)
-            if coordxratio > 1:
-                if screenxratio > coordxratio:
-                    xwidth = yheight * screenxratio
-                else:
-                    yheight = xwidth / float(screenxratio)
-                print xwidth,yheight
-            elif coordxratio < 1:
-                if screenxratio > coordxratio:
-                    if screenxratio > 1:
-                        xwidth = yheight * screenxratio
-                    else:
-                        xwidth,yheight = yheight,xwidth
-                        yheight = xwidth / float(screenxratio)
-                else:
-                    xwidth,yheight = yheight,xwidth
-                    yheight = xwidth / float(screenxratio)
-            
-            # maybe move the center of focus to middle of coordinate space if view ratio has been constrained
-            # ...
+            # make coords same proportions as screen
+            screenxratio = self.width / float(self.height)
+            yheight = yheight
+            xwidth = yheight * screenxratio
+            # ensure that altered coords do not shrink the original coords
+            diffratio = 1.0
+            if xwidth < oldxwidth: diffratio = oldxwidth / float(xwidth)
+            elif yheight < oldyheight: diffratio = oldyheight / float(yheight)
+            xwidth *= diffratio
+            yheight *= diffratio
+            # move the center of focus to middle of coordinate space if view ratio has been constrained
+            xoff = (xwidth - oldxwidth) / 2.0
+            yoff = (yheight - oldyheight) / 2.0
+            centered *= affine.Affine.translate(xoff, yoff)
             
         # Note: The sequence of matrix multiplication is important and sensitive.
 
@@ -239,15 +296,14 @@ class AggRenderer:
         flipped *= affine.Affine.flip(xflip,yflip)
 
         # calculate the final coefficients and set as the drawtransform
-        transcoeffs = (scaled * flipped).coefficients
-        self.transcoeffs = transcoeffs
-        a,b,c,d,e,f = transcoeffs
-        for x,y in grouper([100,100, 900,100, 900,500, 100,500, 100,100], 2):
-            print (x,y),"=",(x*a + y*b + c, x*d + y*e + f)
-        self.drawer.settransform((a,b,c,d,e,f))
+        transcoeffs = (scaled * flipped * centered).coefficients
+        self.drawer.settransform(transcoeffs)
 
         # finally remember the new coordinate extents and affine matrix
-        # ...
+        self.coordspace_bbox = bbox_resize_ratio(bbox,
+                                           xratio=xwidth / float(oldxwidth),
+                                           yratio=yheight / float(oldyheight) )
+        self.coordspace_transform = transcoeffs
 
 
 
@@ -273,7 +329,7 @@ class AggRenderer:
         elif symbol == "square":
             self.drawer.rectangle(bbox, *args)
 
-    def draw_lines(self, coords, smooth=False, **options):
+    def draw_line(self, coords, smooth=False, **options):
         """
         Connect a series of flattened coordinate points with one or more lines.
 
@@ -293,11 +349,26 @@ class AggRenderer:
                 path.lineto(nextx, nexty)
 
         def traverse_curvelines(coords):
+            # begin
+            coords = pairwise(grouper(coords, 2))
+            (startx,starty),(endx,endy) = next(coords)
+            path.moveto(startx, starty)
+            
             # draw straight line to first line midpoint
-            # for each linepair
-            #    curve from midpoint of first to midpoint of second
+            midx,midy = (endx - startx) / 2.0, (endy - starty) / 2.0
+            path.lineto(midx, midy)
+            oldmidx,oldmidy = midx,midy
+            
+            # for each line
+            for line in coords:
+                # curve from midpoint of first to midpoint of second
+                (startx,starty),(endx,endy) = line
+                midx,midy = (endx - startx) / 2.0, (endy - starty) / 2.0
+                path.curveto(oldmidx, oldmidy, midx, midy, startx, starty)
+                oldmidx,oldmidy = midx,midy
+                
             # draw straight line to endpoint of last line
-            pass
+            path.lineto(endx, endy)
 
         if smooth: traverse_curvelines(coords)
         else: traverse_linestring(coords)
@@ -409,8 +480,13 @@ class AggRenderer:
         return PIL.ImageTk.PhotoImage(self.img)
 
     def view(self):
-        # ...
-        pass
+        import Tkinter as tk
+        window = tk.Tk()
+        label = tk.Label(window)
+        label.pack()
+        img = self.get_tkimage()
+        label["image"] = label.img = img
+        window.mainloop()
 
     def save(self, filepath):
         self.drawer.flush()
@@ -426,30 +502,25 @@ if __name__ == "__main__":
 
     # Test
 
-    import Tkinter as tk
-
-    window = tk.Tk()
-    label = tk.Label(window)
-    label.pack()
-
-
     import random
-    def random_n(minval, maxval, n=1):
-        ns = (random.randrange(minval,maxval) for _ in xrange(n))
+    def random_n(minval, maxval, n=1, onlyint=True):
+        if onlyint: randfunc = random.randrange
+        else: randfunc = random.uniform
+        ns = (randfunc(minval,maxval) for _ in xrange(n))
         return tuple(ns)
 
-
     # initiate
-    renderer = AggRenderer()
-    renderer.new_image(1000, 600, random_n(0,222,n=3))
-    renderer.coordinate_space([0, 0, 1000, 600], lock_ratio=True)
+    canvas = Canvas(1000, 500, random_n(0,222,n=3))
+    canvas.coordinate_space(*[0, 0, 1000, 600], lock_ratio=True)
 
     # test zoom
-    renderer.zoom_units(per_cm=50)
-    renderer.coordinate_space([0,0,1763.8888697800926,1058.3333218680557])
+    #canvas.zoom_units(units=100) # entire figure within one cm
+    #print canvas.coordspace_units
+    canvas.zoom_factor(-2) # zoom out 2x times
+    #canvas.zoom_bbox(...) # zoom directly to new bbox
 
     # polygon with hole
-    renderer.draw_polygon(coords=[100,100, 900,100, 900,500, 100,500, 100,100],
+    canvas.draw_polygon(coords=[100,100, 900,100, 900,500, 100,500, 100,100],
                         holes=[[400,400, 600,400, 600,450, 400,450, 400,400]],
                         fillcolor=random_n(0,222,n=3),
                         outlinecolor=random_n(0,222,n=3),
@@ -457,24 +528,32 @@ if __name__ == "__main__":
 
     # random points
     for _ in xrange(100):
-        renderer.draw_point(xy=random_n(0, 1000, n=2),
+        canvas.draw_point(xy=random_n(0, 1000, n=2),
                             fillsize=22,
                             fillcolor=random_n(0,222,n=4),
                             outlinecolor=random_n(0,222,n=3),
                         outlinewidth=7)
 
     # cross lines in percent space
-    renderer.percent_space()
-    renderer.draw_lines([0,0, 100,100],
+    canvas.percent_space()
+    canvas.draw_line([0,0, 100,100],
                         fillcolor=random_n(0,222,n=3),
                         outlinecolor=random_n(0,222,n=3),
                         outlinewidth=10)
-    renderer.draw_lines([100,0, 0,100],
+    canvas.draw_line([100,0, 0,100],
                         fillcolor=random_n(0,222,n=3),
+                        outlinecolor=random_n(0,222,n=3),
+                        outlinewidth=10)
+
+    # random bezier line
+    canvas.percent_space()
+    canvas.draw_line(random_n(0,100,n=16),
+                     smooth=True,
+                        fillcolor=None,
                         outlinecolor=random_n(0,222,n=3),
                         outlinewidth=10)
     
-##    renderer.draw_text(100, 100,
+##    canvas.draw_text(100, 100,
 ##                       text="Hello world!",
 ##                       textfont="default",
 ##                       textsize=9,
@@ -485,10 +564,7 @@ if __name__ == "__main__":
 ##                       textboxoutlinecolor="",
 ##                       textboxoutlinewidth=2)
     
-    img = renderer.get_tkimage()
-    label["image"] = label.img = img
-
-    window.mainloop()
+    canvas.view()
 
 
 
