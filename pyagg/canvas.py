@@ -1,26 +1,42 @@
-
 # Check dependencies
-import Tkinter as tk
 import PIL, PIL.Image, PIL.ImageTk
-import aggdraw
-import affine
+try: import PIL, PIL.Image, PIL.ImageTk ; hasPIL = True
+except ImportError: hasPIL = False
 
+# Import builtins
+import Tkinter as tk
+import struct
+import itertools
 
+# Import submodules
+from . import affine
 
 # Define some globals
 import sys, os
 OSSYSTEM = {"win32":"windows",
-             "darwin":"apple",
+             "darwin":"mac",
              "linux":"linux",
              "linux2":"linux"}[sys.platform]
-SYSFONTFOLDERS = dict([("windows","C:/Windows/Fonts/")])
+PYVERSION = sys.version[:3]
+SYSFONTFOLDERS = dict([("windows","C:/Windows/Fonts/"),
+                       ("mac", "/Library/Fonts/"),
+                       ("linux", "/usr/share/fonts/truetype/")])
 FONTFILENAMES = dict([("default", "TIMES.TTF"),
                         ("times new roman","TIMES.TTF"),
                         ("arial","ARIAL.TTF")])
 
+# Import correct AGG binaries
+try:
+    if PYVERSION == "2.6": from .precompiled.py26 import aggdraw
+    elif PYVERSION == "2.7": from .precompiled.py27 import aggdraw
+except ImportError:
+    import aggdraw # in case user has compiled a working aggdraw version on their own
+
+
+
+
 
 # Some convenience functions
-import itertools
 
 def grouper(iterable, n):
     args = [iter(iterable)] * n
@@ -78,9 +94,13 @@ class Canvas:
     """
     
     def __init__(self, width, height, background=None, mode="RGBA"):
-        self.img = PIL.Image.new(mode, (width, height), background)
+        if hasPIL:
+            self.img = PIL.Image.new(mode, (width, height), background)
+            self.drawer = aggdraw.Draw(self.img)
+        else:
+            self.drawer = aggdraw.Draw(mode, (width, height), background)
+            self.img = self.drawer
         self.width,self.height = width,height
-        self.drawer = aggdraw.Draw(self.img)
         self.pixel_space()
 
 
@@ -88,7 +108,7 @@ class Canvas:
     # Image operations
 
     def resize(self, width, height):
-        return self.resize((width, height))
+        return self.img.resize((width, height))
 
     def rotate(self, angle):
         return self.img.rotate(angle)
@@ -354,7 +374,7 @@ class Canvas:
         """
         path = aggdraw.Path()
 
-        def traverse_linestring(coords):
+        def traverse_straightlines(coords):
             pathstring = ""
             
             # begin
@@ -399,7 +419,7 @@ class Canvas:
             return symbol
 
         if smooth: symbol = traverse_curvelines(coords)
-        else: symbol = traverse_linestring(coords)
+        else: symbol = traverse_straightlines(coords)
         
         # get drawing tools from options
         args = []
@@ -455,7 +475,7 @@ class Canvas:
         """
         draws basic text, no effects
         """
-        fontlocation = self.sysfontfolders[OSSYSTEM]+self.fontfilenames[options["textfont"]]
+        fontlocation = SYSFONTFOLDERS[OSSYSTEM]+FONTFILENAMES[options["textfont"]]
         font = aggdraw.Font(color=options["textcolor"], file=fontlocation, size=options["textsize"], opacity=options["textopacity"])
         fontwidth, fontheight = self.drawer.textsize(text, font)
         textanchor = options.get("textanchor")
@@ -492,11 +512,22 @@ class Canvas:
 
     # Interactive
 
-    def pixelcoord(px, py):
+    def pixel2coord(self, x, y):
+        a,b,c,d,e,f = self.coordspace_transform
+        newx,newy = (x/a - y/b - c, x/d - y/e - f) # ?
+        return newx,newy
+
+    def coord2pixel(self, x, y):
+        a,b,c,d,e,f = self.coordspace_transform
+        newx,newy = (x*a + y*b + c, x*d + y*e + f)
+        return newx,newy
+    
+    def dist_coord2pixel(self, dist):
         pass
 
-    def coordpixel(cx, cy):
+    def dist_pixel2coord(self, dist):
         pass
+
 
 
 
@@ -505,7 +536,18 @@ class Canvas:
 
     def get_tkimage(self):
         self.drawer.flush()
-        return PIL.ImageTk.PhotoImage(self.img)
+        if hasPIL:
+            return PIL.ImageTk.PhotoImage(self.img)
+        else:
+            colorlength = len(self.drawer.mode)
+            width,height = self.drawer.size
+            imgbytes = self.drawer.tostring()
+            imgnrs = struct.unpack("%sB"%(colorlength*width*height), imgbytes)
+            rgbs = grouper(imgnrs, colorlength)
+            imagegrid = grouper(rgbs, width)
+            tkimg = tk.PhotoImage(width=width, height=height)
+            imgstring = " ".join(["{"+" ".join(["#"+"%02x"*colorlength %tuple(color) for color in horizline])+"}" for horizline in imagegrid]) # bottleneck 1
+            tkimg.put(imgstring) # bottleneck 2
 
     def view(self):
         window = tk.Tk()
