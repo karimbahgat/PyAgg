@@ -7,6 +7,7 @@ except ImportError: hasPIL = False
 import Tkinter as tk
 import struct
 import itertools
+import random
 
 # Import submodules
 from . import affine
@@ -83,6 +84,7 @@ def bbox_resize_dimensions(bbox, newwidth, newheight):
 
 def bbox_offset(bbox, xoff, yoff):
     pass
+
 
 
 
@@ -222,7 +224,7 @@ class Canvas:
         newbbox = bbox_resize_ratio(self.coordspace_bbox,
                            xratio=factor,
                            yratio=factor)
-        self.coordinate_space(*newbbox, lock_ratio=True)
+        self.coordinate_space(*newbbox, lock_ratio=False)
 
     def zoom_bbox(self, xleft, ytop, xright, ybottom):
         """
@@ -350,6 +352,8 @@ class Canvas:
         """
         Draw a point/spot/marker as one of several symbol types.
         """
+        options = self._check_options(options)
+        
         args = []
         fillsize = options["fillsize"]
         if options["outlinecolor"]:
@@ -372,6 +376,8 @@ class Canvas:
         - coords: A list of coordinates for the linesequence.
         - smooth: If True, smooths the lines by drawing quadratic bezier curves between midpoints of each line segment.
         """
+        options = self._check_options(options)
+        
         path = aggdraw.Path()
 
         def traverse_straightlines(coords):
@@ -423,12 +429,9 @@ class Canvas:
         
         # get drawing tools from options
         args = []
-        if options["outlinecolor"]:
-            pen = aggdraw.Pen(options["outlinecolor"], options["outlinewidth"])
-            args.append(pen)
         if options["fillcolor"]:
-            brush = aggdraw.Brush(options["fillcolor"])
-            args.append(brush)
+            pen = aggdraw.Pen(options["fillcolor"], options["fillsize"])
+            args.append(pen)
 
         # draw the constructed path
         self.drawer.symbol((0,0), symbol, *args)
@@ -438,6 +441,8 @@ class Canvas:
         Draw polygon and holes with color fill.
         Note: holes must be counterclockwise. 
         """
+        options = self._check_options(options)
+        
         path = aggdraw.Path()
 
         def traverse_ring(coords):
@@ -460,7 +465,7 @@ class Canvas:
             hole = (xory for point in reversed(tuple(grouper(hole, 2))) for xory in point)
             traverse_ring(hole)
 
-        # options
+        # options        
         args = []
         if options["fillcolor"]:
             fillbrush = aggdraw.Brush(options["fillcolor"])
@@ -523,10 +528,12 @@ class Canvas:
         return newx,newy
     
     def dist_coord2pixel(self, dist):
-        pass
+        xdist,ydist = self.coord2pixel(dist,dist)
+        return xdist
 
     def dist_pixel2coord(self, dist):
-        pass
+        xdist,ydist = self.pixel2coord(dist,dist)
+        return xdist
 
 
 
@@ -548,6 +555,7 @@ class Canvas:
             tkimg = tk.PhotoImage(width=width, height=height)
             imgstring = " ".join(["{"+" ".join(["#"+"%02x"*colorlength %tuple(color) for color in horizline])+"}" for horizline in imagegrid]) # bottleneck 1
             tkimg.put(imgstring) # bottleneck 2
+            return tkimg
 
     def view(self):
         window = tk.Tk()
@@ -560,6 +568,51 @@ class Canvas:
     def save(self, filepath):
         self.drawer.flush()
         self.img.save(filepath)
+
+
+
+
+
+    # Internal only
+
+    def _check_options(self, customoptions):
+        #types
+        customoptions = customoptions.copy()
+        #paramaters
+        if customoptions.get("fillcolor", "not specified") == "not specified":
+            customoptions["fillcolor"] = [random.randrange(0,255) for _ in xrange(3)]
+        if not customoptions.get("fillsize"):
+            customoptions["fillsize"] = 0.4
+        if not customoptions.get("fillwidth"):
+            customoptions["fillwidth"] = 1.2
+        if not customoptions.get("fillheight"):
+            customoptions["fillheight"] = 0.8
+        if customoptions.get("outlinecolor", "not specified") == "not specified":
+            customoptions["outlinecolor"] = (0,0,0)
+        if not customoptions.get("outlinewidth"):
+            customoptions["outlinewidth"] = 0.09 #percent of map
+        #convert relative sizes to pixels
+        customoptions["fillsize"] = self.width * customoptions["fillsize"] / 100.0
+        customoptions["fillwidth"] = self.width * customoptions["fillwidth"] / 100.0
+        customoptions["fillheight"] = self.width * customoptions["fillheight"] / 100.0
+        customoptions["outlinewidth"] = self.width * customoptions["outlinewidth"] / 100.0
+        return customoptions
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

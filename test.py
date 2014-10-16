@@ -1,15 +1,23 @@
 import pyagg
 import random
+import math
 
 def test_smoothline():
     canvas = pyagg.Canvas(1000,500)
     canvas.percent_space()
     canvas.draw_line([10,10, 50,90, 90,10],
                      smooth=True,
-                     fillcolor=None,
-                     outlinecolor=(222,0,0),
-                     outlinewidth=9)
+                     fillcolor=(222,0,0),
+                     fillsize=1)
     canvas.view()
+
+def test_histogram():
+    values = [math.sin(i) for i in xrange(10000)]
+    graph = pyagg.graph.Histogram(values=values,
+                                  bins=100,
+                                  fillcolor=(222,222,0),
+                                  outlinecolor=(0,0,222))
+    graph.draw(1000, 500).view()
 
 def test_barchart():
     barlabels = range(10)
@@ -36,9 +44,8 @@ def test_linegraph():
                        xvalues=xs,
                        yvalues=ys,
                        smooth=True,
-                        fillcolor=None,
-                        outlinecolor=(222,222,0),
-                        outlinewidth=3)
+                        fillcolor=(222,222,0),
+                        fillsize=1)
     graph.draw(1000, 500).view()
 
 def test_scatterplot():
@@ -73,7 +80,7 @@ def test_bubbleplot():
 
 if __name__ == "__main__":
     
-    test_linegraph()
+    test_histogram()
 
 
     

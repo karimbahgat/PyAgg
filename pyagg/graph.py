@@ -24,17 +24,45 @@ def bbox_categories(categories):
 
 class Histogram:
     # create a barchart with 0 bargap
-    # pool values into n bins and sum them
-    # use these aggregated bin values as bars arg, and the bin range text as barlabels
-    pass
+    def __init__(self, values, bins, **kwargs):
+        # pool values into n bins and sum them
+        self.options = kwargs
+        self.bins = []
+        minval, maxval = min(values), max(values)
+        valuerange = maxval - minval
+        binwidth = valuerange / float(bins)
+        values = sorted(values)
+        # begin
+        count = 0
+        curval = minval
+        nextval = curval + binwidth
+        for val in values:
+            if val < nextval:
+                count += 1
+            else:
+                self.bins.append(("%s - %s"%(curval,nextval), count))
+                count = 0 + 1 # count towards next bin
+                curval = nextval
+                nextval = curval + binwidth
+        
+    def draw(self, width, height, background=(0,0,0)):
+        # use these aggregated bin values as bars arg, and the bin range text as barlabels
+        graph = BarChart()
+        graph.bargap = 0
+        labels, values = zip(*self.bins)
+        graph.add_category("",
+                           barlabels=labels,
+                           bars=values,
+                           **self.options)
+        canvas = graph.draw(width, height, background)
+        return canvas
 
 class BarChart:
-    # NOT FINISHED...
     
     def __init__(self):
         self.categories = dict()
-        self.bargap = 3
-        self.barwidth = 30
+        self.bargap = 1
+        self.barwidth = 5
         
     def add_category(self, name, barlabels, bars, **kwargs):
         self.categories[name] = {"bars":bars, "barlabels":barlabels, "options":kwargs}
@@ -54,10 +82,8 @@ class BarChart:
         for category,dict in self.categories.items():
             curx = self.bargap + baroffset
             for barvalue in dict["bars"]:
-                flat = [curx,0, curx,barvalue]
-                # convert barwidth coords to barwidth pixels bc drawer outlinewidht is interpreted as pixel width
-                # ...
-                canvas.draw_line(flat, outlinewidth=self.barwidth, **dict["options"])
+                flat = [curx,0, curx+self.barwidth,0, curx+self.barwidth,barvalue, curx,barvalue]
+                canvas.draw_polygon(flat, **dict["options"])
                 curx += self.barwidth + self.bargap
             baroffset += self.barwidth
         # return the drawed canvas
