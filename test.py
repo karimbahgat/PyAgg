@@ -9,6 +9,7 @@ def test_smoothline():
                      smooth=True,
                      fillcolor=(222,0,0),
                      fillsize=1)
+    #canvas.draw_text(44,44,"Someplace Near Boulder")
     canvas.view()
 
 def test_histogram():
@@ -80,7 +81,7 @@ def test_bubbleplot():
 
 if __name__ == "__main__":
     
-    test_histogram()
+    test_smoothline()
 
 
     

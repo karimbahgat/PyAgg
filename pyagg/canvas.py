@@ -1,8 +1,5 @@
 # Check dependencies
-import PIL, PIL.Image, PIL.ImageTk
-try: import PIL, PIL.Image, PIL.ImageTk ; hasPIL = True
-except ImportError: hasPIL = False
-
+import PIL, PIL.Image, PIL.ImageTk, PIL.ImageDraw, PIL.ImageFont
 # Import builtins
 import Tkinter as tk
 import struct
@@ -100,51 +97,59 @@ class Canvas:
     """
     
     def __init__(self, width, height, background=None, mode="RGBA"):
-        if hasPIL:
-            self.img = PIL.Image.new(mode, (width, height), background)
-            self.drawer = aggdraw.Draw(self.img)
-        else:
-            self.drawer = aggdraw.Draw(mode, (width, height), background)
-            self.img = self.drawer
-        self.width,self.height = width,height
+        self.img = PIL.Image.new(mode, (width, height), background)
+        self.drawer = aggdraw.Draw(self.img)
         self.pixel_space()
+
+    @property
+    def width(self):
+        return self.drawer.size[0]
+
+    @property
+    def height(self):
+        return self.drawer.size[1]
+
 
 
 
     # Image operations
 
     def resize(self, width, height):
-        return self.img.resize((width, height))
+        # NOTE: Also need to update drawing transform to match the new image dimensions
+        self.drawer.flush()
+        self.img = self.img.resize((width, height))
+        return self
 
     def rotate(self, angle):
-        return self.img.rotate(angle)
+        self.drawer.flush()
+        self.img = self.img.rotate(angle)
+        return self
 
-    def flip(xflip=True, yflip=False):
+    def flip(self, xflip=True, yflip=False):
+        # NOTE: Also need to update drawing transform to match the new image dimensions
+        self.drawer.flush()
         img = self.img
         if xflip: img = img.transpose(PIL.Image.FLIP_LEFT_RIGHT)
         if yflip: img = img.transpose(PIL.Image.FLIP_TOP_BOTTOM)
-        return img
+        self.img = img
+        return self
 
     def move(self, xmove, ymove):
-        return self.img.offset(xmove, ymove)
+        self.drawer.flush()
+        self.img = self.img.offset(xmove, ymove)
+        return self
 
     def paste(self, image, xy):
-        return self.img.paste(image, xy)
+        self.drawer.flush()
+        self.img = self.img.paste(image, xy)
+        return self
 
     def crop(self, bbox):
-        return self.img.crop(bbox)
+        # NOTE: Also need to update drawing transform to match the new image dimensions
+        self.drawer.flush()
+        self.img = self.img.crop(bbox)
+        return self
 
-    def skew():
-        # ...
-        pass
-
-    def tilt_right(self, angle):
-        # use pyeuclid to get the Matrix4 coefficients for the PIL perspective function
-        pass
-
-    def tilt_top(self, angle):
-        # use pyeuclid to get the Matrix4 coefficients for the PIL perspective function
-        pass
     
 
 
@@ -483,7 +488,7 @@ class Canvas:
     def draw_text(self, x, y, text, **options):
         """
         draws basic text, no effects
-        """
+        """        
         fontlocation = SYSFONTFOLDERS[OSSYSTEM]+FONTFILENAMES[options["textfont"]]
         font = aggdraw.Font(color=options["textcolor"], file=fontlocation, size=options["textsize"], opacity=options["textopacity"])
         fontwidth, fontheight = self.drawer.textsize(text, font)
@@ -547,19 +552,7 @@ class Canvas:
 
     def get_tkimage(self):
         self.drawer.flush()
-        if hasPIL:
-            return PIL.ImageTk.PhotoImage(self.img)
-        else:
-            colorlength = len(self.drawer.mode)
-            width,height = self.drawer.size
-            imgbytes = self.drawer.tostring()
-            imgnrs = struct.unpack("%sB"%(colorlength*width*height), imgbytes)
-            rgbs = grouper(imgnrs, colorlength)
-            imagegrid = grouper(rgbs, width)
-            tkimg = tk.PhotoImage(width=width, height=height)
-            imgstring = " ".join(["{"+" ".join(["#"+"%02x"*colorlength %tuple(color) for color in horizline])+"}" for horizline in imagegrid]) # bottleneck 1
-            tkimg.put(imgstring) # bottleneck 2
-            return tkimg
+        return PIL.ImageTk.PhotoImage(self.img)
 
     def view(self):
         window = tk.Tk()
