@@ -141,7 +141,7 @@ class ScatterPlot:
         for category,dict in self.categories.items():
             valuepairs = zip(dict["x"], dict["y"])
             for xy in valuepairs:
-                canvas.draw_point(xy, symbol="circle", **dict["options"])
+                canvas.draw_circle(xy, **dict["options"])
         # return the drawed canvas
         return canvas
 
@@ -173,7 +173,7 @@ class BubblePlot:
                 # convert z value to some minmax symbolsize
                 # ...
                 # draw the bubble
-                canvas.draw_point((x,y), symbol="circle", fillsize=z, **dict["options"])
+                canvas.draw_circle((x,y), fillsize=z, **dict["options"])
         # return the drawed canvas
         return canvas
 

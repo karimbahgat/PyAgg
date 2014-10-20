@@ -354,29 +354,104 @@ class Canvas:
 
     # Drawing
 
-    def draw_geoj(self, geojobj):
-        pass
-    
-    def draw_point(self, xy, symbol="circle", **options):
+    def draw_circle(self, xy=None, flatratio=1, bbox=None, **options):
         """
-        Draw a point/spot/marker as one of several symbol types.
+        Draw a circle, normal or flattened.
         """
         options = self._check_options(options)
-        
         args = []
-        fillsize = options["fillsize"]
+        
         if options["outlinecolor"]:
             pen = aggdraw.Pen(options["outlinecolor"], options["outlinewidth"])
             args.append(pen)
         if options["fillcolor"]:
             brush = aggdraw.Brush(options["fillcolor"])
             args.append(brush)
-        x,y = xy
-        bbox = [x-fillsize, y-fillsize, x+fillsize, y+fillsize]
-        if symbol == "circle":
-            self.drawer.ellipse(bbox, *args)
-        elif symbol == "square":
-            self.drawer.rectangle(bbox, *args)
+            
+        if xy:
+            x,y = xy
+            fillsize = options["fillsize"]
+            width = options["fillwidth"]
+            height = options["fillheight"]
+            width, height = width / self.width * self.coordspace_width, \
+                            height / self.height * self.coordspace_height
+            if flatratio: height *= flatratio
+            halfwidth, halfheight = width / 2.0, height / 2.0
+            bbox = [x-halfwidth, y-halfheight, x+halfwidth, y+halfheight]
+        
+        elif bbox: pass
+        
+        else: raise Exception("Either xy or bbox has to be specified")
+        
+        self.drawer.ellipse(bbox, *args)
+
+    def draw_triangle(self, xy=None, bbox=None, **options):
+        """
+        Draw a triangle, equiangled or otherwise.
+        """
+        options = self._check_options(options)
+        args = []
+        
+        if options["outlinecolor"]:
+            pen = aggdraw.Pen(options["outlinecolor"], options["outlinewidth"])
+            args.append(pen)
+        if options["fillcolor"]:
+            brush = aggdraw.Brush(options["fillcolor"])
+            args.append(brush)
+            
+        if xy:
+            x,y = xy
+            fillsize = options["fillsize"]
+            width = options["fillwidth"]
+            height = options["fillheight"]
+        
+        elif bbox:
+            xmin,ymin,xmax,ymax = bbox
+            width, height = xmax - xmin, ymax - ymin
+            x, y = xmin + width / 2.0, ymin + height / 2.0
+        
+        else: raise Exception("Either xy or bbox has to be specified")
+
+        width, height = width / self.width * self.coordspace_width, \
+                        height / self.height * self.coordspace_height
+        halfwidth, halfheight = width / 2.0, height / 2.0
+        coords = [x-halfwidth,y-halfheight, x+halfwidth,y-halfheight, x,y+halfheight]
+        self.drawer.polygon(coords, *args)
+
+    def draw_pie(self, xy, startangle, endangle **options):
+        """
+        Draw a piece of pie.
+        """
+        self.drawer.pieslice(xy, startangle, endangle, *args)
+
+    def draw_square(self, xy=None, width=None, height=None, bbox=None, **options):
+        """
+        Draw a square, equisized or rectangular.
+        """
+        options = self._check_options(options)
+        args = []
+        
+        if options["outlinecolor"]:
+            pen = aggdraw.Pen(options["outlinecolor"], options["outlinewidth"])
+            args.append(pen)
+        if options["fillcolor"]:
+            brush = aggdraw.Brush(options["fillcolor"])
+            args.append(brush)
+            
+        if xy:
+            x,y = xy
+            width = options["fillwidth"]
+            height = options["fillheight"]
+            width, height = width / self.width * self.coordspace_width, \
+                            height / self.height * self.coordspace_height
+            halfwidth, halfheight = width / 2.0, height / 2.0
+            bbox = [x-halfwidth, y-halfheight, x+halfwidth, y+halfheight]
+        
+        elif bbox: pass
+        
+        else: raise Exception("Either xy or bbox has to be specified")
+        
+        self.drawer.rectangle(bbox, *args)
 
     def draw_line(self, coords, smooth=False, **options):
         """
@@ -579,15 +654,15 @@ class Canvas:
         if customoptions.get("fillcolor", "not specified") == "not specified":
             customoptions["fillcolor"] = [random.randrange(0,255) for _ in xrange(3)]
         if not customoptions.get("fillsize"):
-            customoptions["fillsize"] = 0.4
+            customoptions["fillsize"] = 0.7
         if not customoptions.get("fillwidth"):
-            customoptions["fillwidth"] = 1.2
+            customoptions["fillwidth"] = customoptions["fillsize"] * 2
         if not customoptions.get("fillheight"):
-            customoptions["fillheight"] = 0.8
+            customoptions["fillheight"] = customoptions["fillsize"] * 2
         if customoptions.get("outlinecolor", "not specified") == "not specified":
             customoptions["outlinecolor"] = (0,0,0)
         if not customoptions.get("outlinewidth"):
-            customoptions["outlinewidth"] = 0.09 #percent of map
+            customoptions["outlinewidth"] = 0.07 #percent of map
         #convert relative sizes to pixels
         customoptions["fillsize"] = self.width * customoptions["fillsize"] / 100.0
         customoptions["fillwidth"] = self.width * customoptions["fillwidth"] / 100.0

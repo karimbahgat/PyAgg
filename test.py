@@ -56,16 +56,14 @@ def test_scatterplot():
     graph.add_category("random nrs",
                        xvalues=xs,
                        yvalues=ys,
-                       fillsize=7,
                         fillcolor=(222,222,0),
-                        outlinecolor=(0,0,222),
-                        outlinewidth=0.5)
+                        outlinecolor=(0,0,222))
     graph.draw(1000, 500).view()
 
 def test_bubbleplot():
     xs = range(1000)
     ys = [random.randrange(400) for _ in xs]
-    zs = [random.randrange(1,15) for _ in xs]
+    zs = [random.uniform(0.5,1.5) for _ in xs]
     graph = pyagg.graph.BubblePlot()
     graph.add_category("random nrs",
                        xvalues=xs,
@@ -73,7 +71,7 @@ def test_bubbleplot():
                        zvalues=zs,
                         fillcolor=(222,222,0),
                         outlinecolor=(0,0,222),
-                        outlinewidth=0.5)
+                        outlinewidth=0.1)
     graph.draw(1000, 500).view()
 
 
@@ -81,7 +79,7 @@ def test_bubbleplot():
 
 if __name__ == "__main__":
     
-    test_smoothline()
+    test_scatterplot()
 
 
     
