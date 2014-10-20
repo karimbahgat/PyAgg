@@ -28,8 +28,12 @@ FONTFILENAMES = dict([("default", "TIMES.TTF"),
 
 # Import correct AGG binaries
 try:
-    if PYVERSION == "2.6": from .precompiled.py26 import aggdraw
-    elif PYVERSION == "2.7": from .precompiled.py27 import aggdraw
+    if OSSYSTEM == "windows":
+        if PYVERSION == "2.6": from .precompiled.win.py26 import aggdraw
+        elif PYVERSION == "2.7": from .precompiled.win.py27 import aggdraw
+    elif OSSYSTEM == "mac":
+        if PYVERSION == "2.6": raise ImportError("Currently no Mac precompilation for Py27")
+        elif PYVERSION == "2.7": from .precompiled.mac.py27 import aggdraw
 except ImportError:
     import aggdraw # in case user has compiled a working aggdraw version on their own
 
@@ -598,95 +602,6 @@ class Canvas:
         customoptions["outlinewidth"] = self.width * customoptions["outlinewidth"] / 100.0
         return customoptions
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-if __name__ == "__main__":
-
-    # Test
-
-    import random
-    def random_n(minval, maxval, n=1, onlyint=True):
-        if onlyint: randfunc = random.randrange
-        else: randfunc = random.uniform
-        ns = (randfunc(minval,maxval) for _ in xrange(n))
-        return tuple(ns)
-
-    # initiate
-    canvas = Canvas(1000, 500, random_n(0,222,n=3))
-    canvas.coordinate_space(*[0, 0, 1000, 600], lock_ratio=True)
-
-    # test zoom
-    #canvas.zoom_units(units=100) # entire figure within one cm
-    #print canvas.coordspace_units
-    canvas.zoom_factor(-2) # zoom out 2x times
-    #canvas.zoom_bbox(...) # zoom directly to new bbox
-
-    # polygon with hole
-    canvas.draw_polygon(coords=[100,100, 900,100, 900,500, 100,500, 100,100],
-                        holes=[[400,400, 600,400, 600,450, 400,450, 400,400]],
-                        fillcolor=random_n(0,222,n=3),
-                        outlinecolor=random_n(0,222,n=3),
-                        outlinewidth=10)
-
-    # random points
-    for _ in xrange(100):
-        canvas.draw_point(xy=random_n(0, 1000, n=2),
-                            fillsize=22,
-                            fillcolor=random_n(0,222,n=4),
-                            outlinecolor=random_n(0,222,n=3),
-                        outlinewidth=7)
-
-    # cross lines in percent space
-    canvas.percent_space()
-    canvas.draw_line([0,0, 100,100],
-                        fillcolor=random_n(0,222,n=3),
-                        outlinecolor=random_n(0,222,n=3),
-                        outlinewidth=10)
-    canvas.draw_line([100,0, 0,100],
-                        fillcolor=random_n(0,222,n=3),
-                        outlinecolor=random_n(0,222,n=3),
-                        outlinewidth=10)
-
-    # random bezier line
-    canvas.percent_space()
-    canvas.draw_line(random_n(0,90,n=16),
-                     smooth=True,
-                        fillcolor=None,
-                        outlinecolor=random_n(0,222,n=3),
-                        outlinewidth=10)
-    
-##    canvas.draw_text(100, 100,
-##                       text="Hello world!",
-##                       textfont="default",
-##                       textsize=9,
-##                       textcolor=(222,222,222),
-##                       textopacity=222,
-##                       textboxfillcolor="",
-##                       textboxfillsize=1.1,
-##                       textboxoutlinecolor="",
-##                       textboxoutlinewidth=2)
-    
-    canvas.view()
 
 
 
