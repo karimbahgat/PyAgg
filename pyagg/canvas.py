@@ -112,6 +112,10 @@ class Canvas:
 
 
 
+
+
+
+
     # Image operations
 
     def resize(self, width, height):
@@ -153,6 +157,12 @@ class Canvas:
     
 
 
+
+
+
+
+
+
     # Color quality
 
     def brightness():
@@ -164,6 +174,15 @@ class Canvas:
     def color_tint():
         # add rgb color to each pixel
         pass
+
+
+
+
+
+
+
+
+
 
 
 
@@ -352,6 +371,15 @@ class Canvas:
 
 
 
+
+
+
+
+
+
+
+
+
     # Drawing
 
     def draw_circle(self, xy=None, flatratio=1, bbox=None, **options):
@@ -418,13 +446,13 @@ class Canvas:
         coords = [x-halfwidth,y-halfheight, x+halfwidth,y-halfheight, x,y+halfheight]
         self.drawer.polygon(coords, *args)
 
-    def draw_pie(self, xy, startangle, endangle **options):
+    def draw_pie(self, xy, startangle, endangle, **options):
         """
         Draw a piece of pie.
         """
         self.drawer.pieslice(xy, startangle, endangle, *args)
 
-    def draw_square(self, xy=None, width=None, height=None, bbox=None, **options):
+    def draw_square(self, xy=None, bbox=None, **options):
         """
         Draw a square, equisized or rectangular.
         """
@@ -599,6 +627,13 @@ class Canvas:
 
 
 
+
+
+
+
+
+
+
     # Interactive
 
     def pixel2coord(self, x, y):
@@ -623,6 +658,12 @@ class Canvas:
 
 
 
+
+
+
+
+
+
     # Viewing and Saving
 
     def get_tkimage(self):
@@ -640,6 +681,12 @@ class Canvas:
     def save(self, filepath):
         self.drawer.flush()
         self.img.save(filepath)
+
+
+
+
+
+
 
 
 
