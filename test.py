@@ -58,6 +58,13 @@ def test_scatterplot():
                        yvalues=ys,
                         fillcolor=(222,222,0),
                         outlinecolor=(0,0,222))
+    xs = range(1000)
+    ys = [random.randrange(200) for _ in xs]
+    graph.add_category("random nrs2",
+                       xvalues=xs,
+                       yvalues=ys,
+                        fillcolor=(0,222,0),
+                        outlinecolor=(0,0,222))
     graph.draw(1000, 500).view()
 
 def test_bubbleplot():

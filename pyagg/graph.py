@@ -13,9 +13,9 @@ def bbox_categories(categories):
         _xmin,_xmax = min(dict["x"]),max(dict["x"])
         _ymin,_ymax = min(dict["y"]),max(dict["y"])
         if _xmin < xmin: xmin = _xmin
-        if _xmax < xmax: xmax = _xmax
+        if _xmax > xmax: xmax = _xmax
         if _ymin < ymin: ymin = _ymin
-        if _ymax < ymax: ymax = _ymax
+        if _ymax > ymax: ymax = _ymax
     return xmin,ymin,xmax,ymax
 
 
