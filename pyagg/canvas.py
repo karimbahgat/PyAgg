@@ -382,7 +382,7 @@ class Canvas:
 
     # Drawing
 
-    def draw_circle(self, xy=None, flatratio=1, bbox=None, **options):
+    def draw_circle(self, xy=None, bbox=None, flatratio=1, **options):
         """
         Draw a circle, normal or flattened.
         """
@@ -450,7 +450,18 @@ class Canvas:
         """
         Draw a piece of pie.
         """
-        self.drawer.pieslice(xy, startangle, endangle, *args)
+        options = self._check_options(options)
+        x,y = xy
+        fillsize = options["fillsize"]
+        bbox = [x-fillsize, y-fillsize, x+fillsize, y+fillsize]
+        args = []
+        if options["outlinecolor"]:
+            pen = aggdraw.Pen(options["outlinecolor"], options["outlinewidth"])
+            args.append(pen)
+        if options["fillcolor"]:
+            brush = aggdraw.Brush(options["fillcolor"])
+            args.append(brush)
+        self.drawer.pieslice(bbox, startangle, endangle, *args)
 
     def draw_square(self, xy=None, bbox=None, **options):
         """
@@ -484,6 +495,7 @@ class Canvas:
     def draw_line(self, coords, smooth=False, **options):
         """
         Connect a series of flattened coordinate points with one or more lines.
+        NOTE: Outline does not work bc uses paths instead of normal line method.
 
         - coords: A list of coordinates for the linesequence.
         - smooth: If True, smooths the lines by drawing quadratic bezier curves between midpoints of each line segment.
@@ -588,42 +600,56 @@ class Canvas:
             
         self.drawer.path((0,0), path, *args)
 
-    def draw_text(self, x, y, text, **options):
+    def draw_text(self, xy, text, **options):
         """
         draws basic text, no effects
-        """        
+        """
+        x,y = xy
+        options = self._check_text_options(options)
+
+        # process text options
         fontlocation = SYSFONTFOLDERS[OSSYSTEM]+FONTFILENAMES[options["textfont"]]
-        font = aggdraw.Font(color=options["textcolor"], file=fontlocation, size=options["textsize"], opacity=options["textopacity"])
-        fontwidth, fontheight = self.drawer.textsize(text, font)
-        textanchor = options.get("textanchor")
-        if textanchor:
-            textanchor = textanchor.lower()
-            if textanchor == "center":
-                x = int(x) - int(fontwidth/2.0)
-                y = int(y) - int(fontheight/2.0)
-            else:
-                x = int(x) - int(fontwidth/2.0)
-                y = int(y) - int(fontheight/2.0)
-                if "n" in textanchor:
-                    y = int(y)
-                elif "s" in textanchor:
-                    y = int(y) - int(fontheight)
-                if "e" in textanchor:
-                    x = int(x) - int(fontwidth)
-                elif "w" in textanchor:
-                    x = int(x)
-        if options.get("textboxfillcolor") or options.get("textboxoutlinecolor"):
-            relfontwidth, relfontheight = (fontwidth/float(MAPWIDTH), fontheight/float(MAPHEIGHT))
-            relxmid,relymid = (x/float(MAPWIDTH)+relfontwidth/2.0,y/float(MAPHEIGHT)+relfontheight/2.0)
-            relupperleft = (relxmid-relfontwidth*options["textboxfillsize"]/2.0, relymid-relfontheight*options["textboxfillsize"]/2.0)
-            relbottomright = (relxmid+relfontwidth*options["textboxfillsize"]/2.0, relymid+relfontheight*options["textboxfillsize"]/2.0)
-            options["fillcolor"] = options["textboxfillcolor"]
-            options["outlinecolor"] = options["textboxoutlinecolor"]
-            options["outlinewidth"] = options["textboxoutlinewidth"]
-            self.RenderRectangle(relupperleft, relbottomright, options)
-        self.drawer.text((x,y), text, font)
+        PIL_drawer = PIL.ImageDraw.Draw(self.img)
 
+        # PIL doesnt support transforms, so must get the pixel coords of the coordinate
+        x,y = self.coord2pixel(x,y)
+        
+        # get font dimensions
+        font = PIL.ImageFont.truetype(fontlocation, size=options["textsize"]) #, opacity=options["textopacity"])
+        fontwidth, fontheight = font.getsize(text)
+        # anchor
+        textanchor = options["textanchor"].lower()
+        print textanchor
+        if textanchor == "center":
+            x = int(x - fontwidth/2.0)
+            y = int(y - fontheight/2.0)
+        else:
+            x = int(x - fontwidth/2.0)
+            y = int(y - fontheight/2.0)
+            if "n" in textanchor:
+                y = int(y + fontheight/2.0)
+            elif "s" in textanchor:
+                y = int(y - fontheight/2.0)
+            if "e" in textanchor:
+                x = int(x - fontwidth/2.0)
+            elif "w" in textanchor:
+                x = int(x + fontwidth/2.0)
 
+        # then draw text
+        self.drawer.flush()
+        # for text wrapping inside bbox, see: http://stackoverflow.com/questions/1970807/center-middle-align-text-with-pil
+        # ...
+        PIL_drawer.text((x,y), text, fill=options["textcolor"], font=font)
+        
+        # update changes to the aggdrawer, and remember to reapply transform
+        self.drawer = aggdraw.Draw(self.img)
+        self.drawer.settransform(self.coordspace_transform)
+
+    def draw_geojson(self, geojson):
+        pass
+
+    def draw_svg(self, svg):
+        pass
 
 
 
@@ -717,6 +743,50 @@ class Canvas:
         customoptions["outlinewidth"] = self.width * customoptions["outlinewidth"] / 100.0
         return customoptions
 
+    def _check_text_options(self, customoptions):
+        customoptions = customoptions.copy()
+        #text and font
+        if not customoptions.get("textfont"):
+            customoptions["textfont"] = "default"
+            
+        # RIGHT NOW, TEXTSIZE IS PERCENT OF IMAGE SIZE, BUT MAYBE USE NORMAL SIZE INSTEAD
+        # see: http://stackoverflow.com/questions/4902198/pil-how-to-scale-text-size-in-relation-to-the-size-of-the-image
+
+        if not customoptions.get("textsize"):
+            #customoptions["textsize"] = int(round(self.width*0.0055)) #equivalent to textsize 7
+            customoptions["textsize"] = 8
+        else:
+            customoptions["textsize"] = int(round(customoptions["textsize"]))
+            #input is percent textheight of MAPWIDTH
+            #percentheight = customoptions["textsize"]
+            #so first get pixel height
+            #pixelheight = self.width*percentheight
+            #to get textsize
+            #textsize = int(round(pixelheight*0.86))
+            #customoptions["textsize"] = textsize
+        if not customoptions.get("textcolor"):
+            customoptions["textcolor"] = (0,0,0)
+##        if not customoptions.get("textopacity"):
+##            customoptions["textopacity"] = 255
+##        if not customoptions.get("texteffect"):
+##            customoptions["texteffect"] = None
+        if not customoptions.get("textanchor"):
+            customoptions["textanchor"] = "center"
+        #text background box
+##        if not customoptions.get("textboxfillcolor"):
+##            customoptions["textboxfillcolor"] = None
+##        else:
+##            if customoptions.get("textboxoutlinecolor","not specified") == "not specified":
+##                customoptions["textboxoutlinecolor"] = (0,0,0)
+##        if not customoptions.get("textboxfillsize"):
+##            customoptions["textboxfillsize"] = 1.1 #proportion size of text bounding box
+##        if not customoptions.get("textboxoutlinecolor"):
+##            customoptions["textboxoutlinecolor"] = None
+##        if not customoptions.get("textboxoutlinewidth"):
+##            customoptions["textboxoutlinewidth"] = 1.0 #percent of fill, not of map
+##        if not customoptions.get("textboxopacity"):
+##            customoptions["textboxopacity"] = 0 #both fill and outline
+        return customoptions
 
 
 

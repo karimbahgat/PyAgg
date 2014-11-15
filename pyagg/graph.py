@@ -1,3 +1,7 @@
+
+import itertools, operator
+
+
 from .canvas import Canvas
 
 
@@ -91,7 +95,32 @@ class BarChart:
 
 class PieChart:
     # similar to barchart, but each pie size decided by value's %share of total
-    pass
+    def __init__(self):
+        self.categories = dict()
+        
+    def add_category(self, name, pielabels, pievalues, **kwargs):
+        # only one possible category
+        self.categories[name] = {"values":pievalues, "labels":pielabels, "options":kwargs}
+
+    def draw(self, width, height, background=(0,0,0)):
+        canvas = Canvas(width, height, background)
+        canvas.percent_space()
+        category = self.categories.values()[0]
+        total = sum(category["values"])
+        zipped = itertools.izip(category["labels"],category["values"])
+        grouped = itertools.groupby(zipped, operator.itemgetter(0))
+        summed = [(groupname, sum([val[1] for val in values])) for groupname,values in grouped]
+        total = sum([sumval for groupname,sumval in summed])
+        curangle = 0
+        for groupname, sumval in summed:
+            ratio = sumval / float(total)
+            degrees = 360 * ratio
+            canvas.draw_pie((50,50), curangle, curangle + degrees,
+                            **category["options"])
+            curangle += degrees
+        return canvas
+            
+            
 
 
 

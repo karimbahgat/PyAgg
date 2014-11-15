@@ -9,7 +9,6 @@ def test_smoothline():
                      smooth=True,
                      fillcolor=(222,0,0),
                      fillsize=1)
-    #canvas.draw_text(44,44,"Someplace Near Boulder")
     canvas.view()
 
 def test_histogram():
@@ -37,16 +36,15 @@ def test_barchart():
 ##                        outlinecolor=(0,0,222))
     graph.draw(1000, 500).view()
 
-def test_linegraph():
-    xs = range(100)
+def test_piechart():
+    xs = range(10)
     ys = [random.randrange(40) for _ in xs]
-    graph = pyagg.graph.LineGraph()
+    graph = pyagg.graph.PieChart()
     graph.add_category("random nrs",
-                       xvalues=xs,
-                       yvalues=ys,
-                       smooth=True,
+                       pielabels=xs,
+                       pievalues=ys,
                         fillcolor=(222,222,0),
-                        fillsize=1)
+                        fillsize=3)
     graph.draw(1000, 500).view()
 
 def test_scatterplot():
@@ -86,7 +84,7 @@ def test_bubbleplot():
 
 if __name__ == "__main__":
     
-    test_scatterplot()
+    test_piechart()
 
 
     
