@@ -7,7 +7,17 @@ allow draw geojson
 
 allow draw svg, using svgfig module to load them
 
+make extensive font lists to choose from or a font file searcher for each os
 
+add possibility to specify custom font folder
+
+change draw_square to draw_box
+
+maybe remove dist_coord funcs
+
+for shapes that need filling (circle, box, line, pie), when using irregular transform find way to draw them without distorting their shapes (eg draw to a new image without setting a transform and using coords2pixel, then merge images (OR just removing the transform temporarily and then reapplying after drawing) )
+
+decide if sizes should use coordinate system units (slower bc has to convert) or pixel units (faster but maybe inconvenient) or if possible to choose bw both for each draw operation via a "units" arg.
 
 
 
@@ -18,3 +28,5 @@ support wrapping text in textbox, with or without box fill and outline
 support drawing lineoutline, by manual calculating line offsets and intersections based on left or right turn (see pydraw)
 
 maybe draw circle and square should have fillsize as custom arg instead of part of **kwoptions, but maybe not
+
+mac error view() shows nothing if background set to none
