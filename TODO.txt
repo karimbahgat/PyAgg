@@ -1,19 +1,7 @@
 
-fix error saying no py27 binaries for mac when really should say 26
-
-rename coordinate_space() to custom_space()
-
-allow draw geojson
+TO DO
 
 allow draw svg, using svgfig module to load them
-
-make extensive font lists to choose from or a font file searcher for each os
-
-add possibility to specify custom font folder
-
-change draw_square to draw_box
-
-maybe remove dist_coord funcs
 
 for shapes that need filling (circle, box, line, pie), when using irregular transform find way to draw them without distorting their shapes (eg draw to a new image without setting a transform and using coords2pixel, then merge images (OR just removing the transform temporarily and then reapplying after drawing) )
 

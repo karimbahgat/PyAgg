@@ -1,27 +1,64 @@
 # Check dependencies
 import PIL, PIL.Image, PIL.ImageTk, PIL.ImageDraw, PIL.ImageFont
 # Import builtins
+import sys, os
 import Tkinter as tk
 import struct
 import itertools
 import random
 
 # Import submodules
+PYAGGFOLDER = os.path.split(__file__)[0]
+sys.path.insert(0, PYAGGFOLDER)
 from . import affine
+from fontTools.ttLib import TTFont
+#print TTFont
+#print TTFont("C:/Windows/Fonts/Times.ttf").get("name").names
 
 # Define some globals
-import sys, os
 OSSYSTEM = {"win32":"windows",
              "darwin":"mac",
              "linux":"linux",
              "linux2":"linux"}[sys.platform]
+
 PYVERSION = sys.version[:3]
+
 SYSFONTFOLDERS = dict([("windows","C:/Windows/Fonts/"),
                        ("mac", "/Library/Fonts/"),
                        ("linux", "/usr/share/fonts/truetype/")])
-FONTFILENAMES = dict([("default", "TIMES.TTF"),
-                        ("times new roman","TIMES.TTF"),
-                        ("arial","ARIAL.TTF")])
+
+FONTFILENAMES = dict([(filename.lower(), os.path.join(dirpath, filename))
+                       for dirpath,dirnames,filenames in os.walk(SYSFONTFOLDERS[OSSYSTEM])
+                      for filename in filenames
+                      if filename.endswith(".ttf")])
+
+FONTNAMES = dict()
+for filename in FONTFILENAMES.keys():
+    metadata = TTFont(FONTFILENAMES[filename]).get("name")
+    for info in metadata.names:
+        if info.nameID == 4: # font family name with optional bold/italics
+            if info.string.startswith("\x00"):
+                # somehow the font string has weird byte data in first position and between each character
+                fontname = info.string[1::2]
+            else:
+                fontname = info.string
+            break
+    FONTNAMES.update([(fontname.lower(), filename)])
+
+def GET_FONTPATH(font):
+    font = font.lower()
+    # first try to get human readable name from custom list
+    if FONTNAMES.get(font):
+        return os.path.join(SYSFONTFOLDERS[OSSYSTEM], FONTFILENAMES[FONTNAMES[font]])
+    # then try to get from custom font filepath
+    elif os.path.lexists(font):
+        return font
+    # or try to get from filename in font folder
+    elif FONTFILENAMES.get(font):
+        return FONTFILENAMES[font]
+    # raise error if hasnt succeeded yet
+    raise Exception("Could not find the font specified. Font must be either a human-readable name, a filename with extension in the default font folder, or a full path to the font file location")
+        
 
 # Import correct AGG binaries
 try:
@@ -29,7 +66,7 @@ try:
         if PYVERSION == "2.6": from .precompiled.win.py26 import aggdraw
         elif PYVERSION == "2.7": from .precompiled.win.py27 import aggdraw
     elif OSSYSTEM == "mac":
-        if PYVERSION == "2.6": raise ImportError("Currently no Mac precompilation for Py27")
+        if PYVERSION == "2.6": raise ImportError("Currently no Mac precompilation for Py26")
         elif PYVERSION == "2.7": from .precompiled.mac.py27 import aggdraw
 except ImportError:
     import aggdraw # in case user has compiled a working aggdraw version on their own
@@ -99,6 +136,7 @@ class Canvas:
     def __init__(self, width, height, background=None, mode="RGBA"):
         self.img = PIL.Image.new(mode, (width, height), background)
         self.drawer = aggdraw.Draw(self.img)
+        self.background = background
         self.pixel_space()
 
     @property
@@ -143,9 +181,9 @@ class Canvas:
         self.img = self.img.offset(xmove, ymove)
         return self
 
-    def paste(self, image, xy):
+    def paste(self, image, xy=(0,0)):
         self.drawer.flush()
-        self.img = self.img.paste(image, xy)
+        self.img.paste(image, xy)
         return self
 
     def crop(self, bbox):
@@ -215,7 +253,7 @@ class Canvas:
         pixscm = 28.346457
         widthcm = self.width / float(pixscm)
         units = self.coordspace_width / float(widthcm)
-        return units       
+        return units
 
     def zoom_units(self, units, center=None):
         """
@@ -235,7 +273,7 @@ class Canvas:
         newbbox = bbox_resize_dimensions(self.coordspace_bbox,
                                          newwidth=unitswidth,
                                          newheight=unitsheight)
-        self.coordinate_space(*newbbox, lock_ratio=True)
+        self.custom_space(*newbbox, lock_ratio=True)
 
     def zoom_factor(self, factor, center=None):
         """
@@ -252,7 +290,7 @@ class Canvas:
         newbbox = bbox_resize_ratio(self.coordspace_bbox,
                            xratio=factor,
                            yratio=factor)
-        self.coordinate_space(*newbbox, lock_ratio=False)
+        self.custom_space(*newbbox, lock_ratio=False)
 
     def zoom_bbox(self, xleft, ytop, xright, ybottom):
         """
@@ -265,7 +303,7 @@ class Canvas:
         if not (xleft < xright) == (oldxleft < oldxright) or not (ytop < ybottom) == (oldytop < oldybottom):
             raise Exception("Zoom error: Zoom bbox must follow the same axis directions as the canvas' coordinate space.")
         # zoom it
-        self.coordinate_space(xleft, ytop, xright, ybottom, lock_ratio=True)
+        self.custom_space(xleft, ytop, xright, ybottom, lock_ratio=True)
 
     def pixel_space(self):
         """
@@ -282,23 +320,23 @@ class Canvas:
         Convenience method for setting the coordinate space to fractions,
         so the user can easily draw using relative fractions (0-1) of image.
         """
-        self.coordinate_space(*[0,0,1,1])
+        self.custom_space(*[0,0,1,1])
 
     def percent_space(self):
         """
         Convenience method for setting the coordinate space to percentages,
         so the user can easily draw coordinates as percentage (0-100) of image.
         """
-        self.coordinate_space(*[0,0,100,100])
+        self.custom_space(*[0,0,100,100])
 
     def geographic_space(self):
         """
         Convenience method for setting the coordinate space to geographic,
         so the user can easily draw coordinates as lat/long of world.
         """
-        self.coordinate_space(*[-180,90,180,-90], lock_ratio=True)
+        self.custom_space(*[-180,90,180,-90], lock_ratio=True)
 
-    def coordinate_space(self, xleft, ytop, xright, ybottom,
+    def custom_space(self, xleft, ytop, xright, ybottom,
                          lock_ratio=False):
         """
         Defines which areas of the screen represent which areas in the
@@ -463,7 +501,7 @@ class Canvas:
             args.append(brush)
         self.drawer.pieslice(bbox, startangle, endangle, *args)
 
-    def draw_square(self, xy=None, bbox=None, **options):
+    def draw_box(self, xy=None, bbox=None, **options):
         """
         Draw a square, equisized or rectangular.
         """
@@ -503,12 +541,15 @@ class Canvas:
         options = self._check_options(options)
         
         path = aggdraw.Path()
+        
+        if not hasattr(coords[0], "__iter__"):
+            coords = grouper(coords, 2)
+        else: coords = (point for point in coords)
 
         def traverse_straightlines(coords):
             pathstring = ""
             
             # begin
-            coords = grouper(coords, 2)
             startx,starty = next(coords)
             pathstring += " M%s,%s" %(startx, starty)
             
@@ -524,7 +565,7 @@ class Canvas:
             pathstring = ""
             
             # begin
-            coords = pairwise(grouper(coords, 2))
+            coords = pairwise(coords)
             (startx,starty),(endx,endy) = next(coords)
             pathstring += " M%s,%s" %(startx, starty)
             
@@ -568,10 +609,13 @@ class Canvas:
         options = self._check_options(options)
         
         path = aggdraw.Path()
+        
+        if not hasattr(coords[0], "__iter__"):
+            coords = grouper(coords, 2)
+        else: coords = (point for point in coords)
 
         def traverse_ring(coords):
             # begin
-            coords = grouper(coords, 2)
             startx,starty = next(coords)
             path.moveto(startx, starty)
             
@@ -586,7 +630,9 @@ class Canvas:
         # then holes
         for hole in holes:
             # !!! need to test for ring direction !!!
-            hole = (xory for point in reversed(tuple(grouper(hole, 2))) for xory in point)
+            if not hasattr(hole[0], "__iter__"):
+                hole = grouper(hole, 2)
+            else: hole = (point for point in hole)
             traverse_ring(hole)
 
         # options        
@@ -608,7 +654,7 @@ class Canvas:
         options = self._check_text_options(options)
 
         # process text options
-        fontlocation = SYSFONTFOLDERS[OSSYSTEM]+FONTFILENAMES[options["textfont"]]
+        fontlocation = GET_FONTPATH(options["textfont"])
         PIL_drawer = PIL.ImageDraw.Draw(self.img)
 
         # PIL doesnt support transforms, so must get the pixel coords of the coordinate
@@ -619,7 +665,6 @@ class Canvas:
         fontwidth, fontheight = font.getsize(text)
         # anchor
         textanchor = options["textanchor"].lower()
-        print textanchor
         if textanchor == "center":
             x = int(x - fontwidth/2.0)
             y = int(y - fontheight/2.0)
@@ -645,8 +690,37 @@ class Canvas:
         self.drawer = aggdraw.Draw(self.img)
         self.drawer.settransform(self.coordspace_transform)
 
-    def draw_geojson(self, geojson):
-        pass
+    def draw_geojson(self, geojobj, **options):
+        """
+        Takes any geojson dictionary or object that has the __geo_interface__ attribute
+        """
+        if isinstance(geojobj, dict): geojson = geojobj
+        else: geojson = geojobj.__geo_interface__
+        geotype = geojson["type"]
+        coords = geojson["coordinates"]
+        if geotype == "Point":
+            self.draw_circle(xy=coords, **options)
+        elif geotype == "MultiPoint":
+            for point in coords:
+                self.draw_circle(xy=point, **options)
+        elif geotype == "LineString":
+            self.draw_line(coords=coords, **options)
+        elif geotype == "MultiLineString":
+            for line in coords:
+                self.draw_line(coords=line, **options)
+        elif geotype == "Polygon":
+            exterior = coords[0]
+            interiors = []
+            if len(coords) > 1:
+                interiors.extend(coords[1:])
+            self.draw_polygon(exterior, holes=interiors, **options)
+        elif geotype == "MultiPolygon":
+            for poly in coords:
+                exterior = poly[0]
+                interiors = []
+                if len(poly) > 1:
+                    interiors.extend(poly[1:])
+                self.draw_polygon(exterior, holes=interiors, **options)
 
     def draw_svg(self, svg):
         pass
@@ -671,14 +745,6 @@ class Canvas:
         a,b,c,d,e,f = self.coordspace_transform
         newx,newy = (x*a + y*b + c, x*d + y*e + f)
         return newx,newy
-    
-    def dist_coord2pixel(self, dist):
-        xdist,ydist = self.coord2pixel(dist,dist)
-        return xdist
-
-    def dist_pixel2coord(self, dist):
-        xdist,ydist = self.pixel2coord(dist,dist)
-        return xdist
 
 
 
@@ -692,6 +758,14 @@ class Canvas:
 
     # Viewing and Saving
 
+    def clear(self):
+        self.img = PIL.Image.new(self.img.mode, self.img.size, self.background)
+        self.drawer = aggdraw.Draw(self.img)
+        
+    def get_image(self):
+        self.drawer.flush()
+        return self.img
+    
     def get_tkimage(self):
         self.drawer.flush()
         return PIL.ImageTk.PhotoImage(self.img)
@@ -707,6 +781,7 @@ class Canvas:
     def save(self, filepath):
         self.drawer.flush()
         self.img.save(filepath)
+
 
 
 
@@ -747,7 +822,7 @@ class Canvas:
         customoptions = customoptions.copy()
         #text and font
         if not customoptions.get("textfont"):
-            customoptions["textfont"] = "default"
+            customoptions["textfont"] = "Arial"
             
         # RIGHT NOW, TEXTSIZE IS PERCENT OF IMAGE SIZE, BUT MAYBE USE NORMAL SIZE INSTEAD
         # see: http://stackoverflow.com/questions/4902198/pil-how-to-scale-text-size-in-relation-to-the-size-of-the-image

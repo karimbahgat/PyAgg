@@ -1,0 +1,7 @@
+*** Other svg libs to use:
+
+This one gets objects for each shape type, so no need to parse, and can also read from file, maybe best so far :)
+https://github.com/cjlano/svg
+
+Another one with path elements:
+https://pypi.python.org/pypi/svg.path

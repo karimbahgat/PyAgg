@@ -1,5 +1,7 @@
 
-import itertools, operator
+import itertools
+import operator
+import math
 
 
 from .canvas import Canvas
@@ -69,25 +71,27 @@ class BarChart:
         self.barwidth = 5
         
     def add_category(self, name, barlabels, bars, **kwargs):
-        self.categories[name] = {"bars":bars, "barlabels":barlabels, "options":kwargs}
+        self.categories[name] = {"barlabels":barlabels, "bars":bars, "options":kwargs}
 
     def draw(self, width, height, background=(0,0,0)):
         canvas = Canvas(width, height, background)
         ymin = min((min(dict["bars"]) for category,dict in self.categories.items()))
+        ymin = min(0, ymin)     # to ensure snapping to 0 if ymin is not negative
         ymax = max((max(dict["bars"]) for category,dict in self.categories.items()))
         _barcount = sum((len(dict["bars"]) for category,dict in self.categories.items()))
         xmin = 0
         xmax = self.bargap + ( (self.barwidth + self.bargap) * _barcount)
         # set coordinate bbox
-        canvas.coordinate_space(xmin,ymax,xmax,ymin)
+        canvas.custom_space(xmin,ymax,xmax,ymin)
         canvas.zoom_factor(-1.2)
         # draw categories
         baroffset = 0
         for category,dict in self.categories.items():
             curx = self.bargap + baroffset
-            for barvalue in dict["bars"]:
+            for barlabel,barvalue in itertools.izip(dict["barlabels"], dict["bars"]):
                 flat = [curx,0, curx+self.barwidth,0, curx+self.barwidth,barvalue, curx,barvalue]
                 canvas.draw_polygon(flat, **dict["options"])
+                canvas.draw_text((curx+self.barwidth/2.0,0), unicode(barlabel), textcolor="white", textanchor="n", textsize=12)
                 curx += self.barwidth + self.bargap
             baroffset += self.barwidth
         # return the drawed canvas
@@ -98,25 +102,36 @@ class PieChart:
     def __init__(self):
         self.categories = dict()
         
-    def add_category(self, name, pielabels, pievalues, **kwargs):
+    def add_category(self, name, value, **kwargs):
         # only one possible category
-        self.categories[name] = {"values":pievalues, "labels":pielabels, "options":kwargs}
+        self.categories[name] = {"value":value, "options":kwargs}
 
     def draw(self, width, height, background=(0,0,0)):
         canvas = Canvas(width, height, background)
-        canvas.percent_space()
-        category = self.categories.values()[0]
-        total = sum(category["values"])
-        zipped = itertools.izip(category["labels"],category["values"])
-        grouped = itertools.groupby(zipped, operator.itemgetter(0))
-        summed = [(groupname, sum([val[1] for val in values])) for groupname,values in grouped]
-        total = sum([sumval for groupname,sumval in summed])
+        canvas.custom_space(-50, 50, 50, -50)
+        total = sum(cat["value"] for cat in self.categories.values())
+
+        # first pies
         curangle = 0
-        for groupname, sumval in summed:
-            ratio = sumval / float(total)
+        for category in self.categories.values():
+            value = category["value"]
+            ratio = value / float(total)
             degrees = 360 * ratio
-            canvas.draw_pie((50,50), curangle, curangle + degrees,
+            canvas.draw_pie((0,0), curangle, curangle + degrees,
                             **category["options"])
+            curangle += degrees
+
+        # then text label
+        curangle = 0
+        for name, category in self.categories.items():
+            value = category["value"]
+            ratio = value / float(total)
+            degrees = 360 * ratio
+            midangle = curangle + (degrees / 2.0)
+            midrad = math.radians(midangle)
+            size = 20 #category["options"]["fillsize"] / 2.0
+            tx,ty = 0 + size * math.cos(midrad), 0 - size * math.sin(midrad)
+            canvas.draw_text((tx,ty), name, **category["options"])
             curangle += degrees
         return canvas
             
@@ -140,13 +155,17 @@ class LineGraph:
         canvas = Canvas(width, height, background)
         xmin,ymin,xmax,ymax = bbox_categories(self.categories)
         # set coordinate bbox
-        canvas.coordinate_space(xmin,ymax,xmax,ymin)
+        canvas.custom_space(xmin,ymax,xmax,ymin)
         canvas.zoom_factor(-1.2)
         # draw categories
         for category,dict in self.categories.items():
             valuepairs = zip(dict["x"], dict["y"])
             flat = [xory for xy in valuepairs for xory in xy]
             canvas.draw_line(flat, **dict["options"])
+        #canvas.draw_text((xmax,ymin), unicode(xmax), textcolor=(222,222,222))
+        #canvas.draw_text((xmin,ymax), unicode(ymax), textcolor=(222,222,222))
+        #canvas.draw_text((xmin+5,ymin), unicode(xmin), textcolor=(222,222,222))
+        #canvas.draw_text((xmin,ymin+5), unicode(ymin), textcolor=(222,222,222))
         # return the drawed canvas
         return canvas
 
@@ -164,7 +183,7 @@ class ScatterPlot:
         canvas = Canvas(width, height, background)
         xmin,ymin,xmax,ymax = bbox_categories(self.categories)
         # set coordinate bbox
-        canvas.coordinate_space(xmin,ymax,xmax,ymin)
+        canvas.custom_space(xmin,ymax,xmax,ymin)
         canvas.zoom_factor(-1.2)
         # draw categories
         for category,dict in self.categories.items():
@@ -192,7 +211,7 @@ class BubblePlot:
         canvas = Canvas(width, height, background)
         xmin,ymin,xmax,ymax = bbox_categories(self.categories)
         # set coordinate bbox
-        canvas.coordinate_space(xmin,ymax,xmax,ymin)
+        canvas.custom_space(xmin,ymax,xmax,ymin)
         canvas.zoom_factor(-1.2)
         # draw categories
         for category,dict in self.categories.items():
