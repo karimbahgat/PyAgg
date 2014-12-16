@@ -159,12 +159,14 @@ class Canvas:
     def resize(self, width, height):
         # NOTE: Also need to update drawing transform to match the new image dimensions
         self.drawer.flush()
-        self.img = self.img.resize((width, height))
+        self.img = self.img.resize((width, height), PIL.Image.ANTIALIAS)
+        self.update_drawer_img()
         return self
 
     def rotate(self, angle):
         self.drawer.flush()
-        self.img = self.img.rotate(angle)
+        self.img = self.img.rotate(angle, PIL.Image.BICUBIC)
+        self.update_drawer_img()
         return self
 
     def flip(self, xflip=True, yflip=False):
@@ -174,25 +176,32 @@ class Canvas:
         if xflip: img = img.transpose(PIL.Image.FLIP_LEFT_RIGHT)
         if yflip: img = img.transpose(PIL.Image.FLIP_TOP_BOTTOM)
         self.img = img
+        self.update_drawer_img()
         return self
 
     def move(self, xmove, ymove):
         self.drawer.flush()
         self.img = self.img.offset(xmove, ymove)
+        self.update_drawer_img()
         return self
 
     def paste(self, image, xy=(0,0)):
         self.drawer.flush()
-        self.img.paste(image, xy)
+        self.img.paste(image, xy, image)
+        self.update_drawer_img()
         return self
 
     def crop(self, bbox):
         # NOTE: Also need to update drawing transform to match the new image dimensions
         self.drawer.flush()
         self.img = self.img.crop(bbox)
+        self.update_drawer_img()
         return self
 
-    
+    def update_drawer_img(self):
+        # update changes to the aggdrawer, and remember to reapply transform
+        self.drawer = aggdraw.Draw(self.img)
+        self.drawer.settransform(self.coordspace_transform)
 
 
 
