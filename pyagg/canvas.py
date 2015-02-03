@@ -120,14 +120,87 @@ def bbox_resize_dimensions(bbox, newwidth, newheight):
     yratio = newheight / float(yheight)
     return bbox_resize_ratio(bbox, xratio, yratio)
 
-def bbox_offset(bbox, xoff, yoff):
-    pass
+def bbox_center(bbox, center):
+    # remember old
+    x1,y1,x2,y2 = bbox
+    x2x = (x1,x2)
+    y2y = (y1,y2)
+    xmin,ymin = min(x2x),min(y2y)
+    xmax,ymax = max(x2x),max(y2y)
+    halfxwidth = (xmax-xmin) / 2.0
+    halfyheight = (ymax-ymin) / 2.0
+    centerx, centery = center
+    # center it
+    xmin = centerx - halfxwidth
+    xmax = centerx + halfxwidth
+    ymin = centery - halfyheight
+    ymax = centery + halfyheight
+    # make sure they have same bbox format as when came in
+    if x1 < x2: x1,x2 = xmin,xmax
+    else: x1,x2 = xmax,xmin
+    if y1 < y2: y1,y2 = ymin,ymax
+    else: y1,y2 = ymax,ymin
+    return [x1,y1,x2,y2]
+
+##def bbox_center(bbox, center):
+##    xleft,ytop,xright,ybottom = bbox
+##    x2x = (xleft,xright)
+##    y2y = (ytop,ybottom)
+##    xhalfwidth = (max(x2x) - min(x2x)) / 2.0
+##    yhalfheight = (max(y2y) - min(y2y)) / 2.0
+##    centerx, centery = center
+##    if xleft < xright:
+##        xleft = centerx - xhalfwidth
+##        xright = centerx + xhalfwidth
+##    else:
+##        xleft = centerx + xhalfwidth
+##        xright = centerx - xhalfwidth
+##    if ytop > ybottom:
+##        ytop = centery + yhalfheight
+##        ybottom = centery - yhalfheight
+##    else:
+##        ytop = centery - yhalfheight
+##        ybottom = centery + yhalfheight
+##    return [xleft, ytop, xright, ybottom]
+
+def bbox_offset(bbox, xoffset, yoffset):
+    x1,y1,x2,y2 = bbox
+    x1,x2 = x1+xoffset,x2+xoffset
+    y1,y2 = y1+yoffset,y2+yoffset
+    return [x1,y1,x2,y2]
+    
+##    xleft,ytop,xright,ybottom = bbox
+##    x2x = (xleft,xright)
+##    y2y = (ytop,ybottom)
+##    xhalfwidth = (max(x2x) - min(x2x))
+##    yhalfheight = (max(y2y) - min(y2y))
+##    centerx, centery = xoffset, yoffset
+##    if xleft < xright:
+##        xleft = centerx - xhalfwidth
+##        xright = centerx + xhalfwidth
+##    else:
+##        xleft = centerx + xhalfwidth
+##        xright = centerx - xhalfwidth
+##    if ytop > ybottom:
+##        ytop = centery + yhalfheight
+##        ybottom = centery - yhalfheight
+##    else:
+##        ytop = centery - yhalfheight
+##        ybottom = centery + yhalfheight
+##    return [xleft, ytop, xright, ybottom]
 
 
 
 
 
 # Main class
+def load(filepath):
+    canvas = Canvas(100, 100)
+    canvas.img = PIL.Image.open(filepath)
+    canvas.drawer = aggdraw.Draw(canvas.img)
+    canvas.pixel_space()
+    return canvas
+
 class Canvas:
     """
     This class is a painter's canvas on which to draw with aggdraw.
@@ -156,20 +229,42 @@ class Canvas:
 
     # Image operations
 
-    def resize(self, width, height):
-        # NOTE: Also need to update drawing transform to match the new image dimensions
+    def resize(self, width, height, lock_ratio=False):
+        """
+        Resize canvas image to new width and height in pixels,
+        and the coordinate system will follow.
+        """
+        # Resize image
         self.drawer.flush()
         self.img = self.img.resize((width, height), PIL.Image.ANTIALIAS)
         self.update_drawer_img()
+        # Then update coordspace to match the new image dimensions
+        self.custom_space(*self.coordspace_bbox, lock_ratio=lock_ratio)
         return self
 
-    def rotate(self, angle):
+    def rotate(self, degrees):
+        """
+        Rotate the canvas image in degree angles,
+        and the coordinate system will follow.
+        """
+        # NOTE: Also need to update drawing transform to match the new image dimensions
         self.drawer.flush()
-        self.img = self.img.rotate(angle, PIL.Image.BICUBIC)
+        self.img = self.img.rotate(degrees, PIL.Image.BICUBIC)
         self.update_drawer_img()
         return self
 
+    def skew(self):
+        """
+        Skew the canvas image in pixels,
+        and the coordinate system will follow.
+        """
+        pass
+
     def flip(self, xflip=True, yflip=False):
+        """
+        Flip the canvas image horizontally or vertically (center-anchored),
+        and the coordinate system will follow. 
+        """
         # NOTE: Also need to update drawing transform to match the new image dimensions
         self.drawer.flush()
         img = self.img
@@ -180,21 +275,67 @@ class Canvas:
         return self
 
     def move(self, xmove, ymove):
+        """
+        Move/offset the canvas image in pixels,
+        and the coordinate system will follow.
+        """
         self.drawer.flush()
-        self.img = self.img.offset(xmove, ymove)
-        self.update_drawer_img()
+        blank = PIL.Image.new(self.img.mode, self.img.size, None)
+        blank.paste(self.img, (xmove, ymove))
+        self.img = blank
+        # similarly move the drawing transform
+        # assuming args were in pixels, convert to coord distances
+        xmove,ymove = self.pixel2coord_dist(xmove, ymove)
+        orig = affine.Affine(*self.coordspace_transform)
+        moved = orig * affine.Affine.translate(xmove,ymove)
+        self.drawer = aggdraw.Draw(self.img)
+        self.drawer.settransform(moved.coefficients)
+        # remember the new coordinate extents and affine matrix
+        self.coordspace_transform = moved.coefficients
+        # offset bbox
+        x1,y1,x2,y2 = 0,0,self.width,self.height
+        x1,y1 = self.pixel2coord(x1, y1)
+        x2,y2 = self.pixel2coord(x2, y2)
+        self.coordspace_bbox = [x1,y1,x2,y2]
         return self
 
     def paste(self, image, xy=(0,0)):
+        """
+        Paste the northwest corner of a PIL image
+        onto a given pixel location in the Canvas.
+        """
         self.drawer.flush()
+        if isinstance(image, Canvas): image = image.img
         self.img.paste(image, xy, image)
         self.update_drawer_img()
         return self
 
-    def crop(self, bbox):
+    def crop(self, xmin, ymin, xmax, ymax):
+        """
+        Crop the canvas image to a bounding box defined in pixel coordinates,
+        and the coordinate system will follow.
+        """
+        ### NEW: JUST DO SAME ROUTINE AS "move" AND "resize"
+        # HALFWAY THROUGH USING COORDINATES
+        # MAYBE GO BACK TO PIXELS ONLY
         # NOTE: Also need to update drawing transform to match the new image dimensions
         self.drawer.flush()
-        self.img = self.img.crop(bbox)
+
+        # convert bbox to pixel positions
+        (xmin, ymin), (xmax, ymax) = [self.coord2pixel(xmin, ymin),
+                                      self.coord2pixel(xmax, ymax)]
+
+        # ensure pixels are listed in correct left/right top/bottom order
+        xleft, ytop, xright, ybottom = xmin, ymin, xmax, ymax
+        if xleft > xright: xleft,xright = xright,xleft
+        if ytop > ybottom: ytop,ybottom = ybottom,ytop
+
+        # constrain aspect ratio, maybe by applying a new zoom_transform and reading coordbbox
+        # ...
+
+        # do the cropping
+        pixel_bbox = map(int, [xleft, ytop, xright, ybottom])
+        self.img = self.img.crop(pixel_bbox)
         self.update_drawer_img()
         return self
 
@@ -217,6 +358,13 @@ class Canvas:
 
     def contrast():
         pass
+
+    def transparency(self, alpha):
+        self.drawer.flush()
+        blank = PIL.Image.new(self.img.mode, self.img.size, None)
+        self.img = blank.paste(self.img, (0,0), alpha)
+        self.update_drawer_img()
+        return self
 
     def color_tint():
         # add rgb color to each pixel
@@ -282,6 +430,9 @@ class Canvas:
         newbbox = bbox_resize_dimensions(self.coordspace_bbox,
                                          newwidth=unitswidth,
                                          newheight=unitsheight)
+        # center it
+        if center:
+            newbbox = bbox_center(newbbox, center)
         self.custom_space(*newbbox, lock_ratio=True)
 
     def zoom_factor(self, factor, center=None):
@@ -299,18 +450,24 @@ class Canvas:
         newbbox = bbox_resize_ratio(self.coordspace_bbox,
                            xratio=factor,
                            yratio=factor)
+        # center it
+        if center:
+            newbbox = bbox_center(newbbox, center)
         self.custom_space(*newbbox, lock_ratio=False)
 
-    def zoom_bbox(self, xleft, ytop, xright, ybottom):
+    def zoom_bbox(self, xmin, ymin, xmax, ymax):
         """
-        Essentially the same as using coord_space, but assumes that
-        you only want to stay within the previous coordinate boundaries,
-        so checks for this and also does not allow changing axis directions. 
+        Essentially the same as using coord_space, but takes bbox
+        in min/max format instead, converting to left/right/etc behind
+        the scenes. 
         """
+        xleft, ybottom, xright, ytop = xmin, ymin, xmax, ymax
         oldxleft, oldytop, oldxright, oldybottom = self.coordspace_bbox
         # ensure old and zoom axes go in same directions
-        if not (xleft < xright) == (oldxleft < oldxright) or not (ytop < ybottom) == (oldytop < oldybottom):
-            raise Exception("Zoom error: Zoom bbox must follow the same axis directions as the canvas' coordinate space.")
+        if not (xleft < xright) == (oldxleft < oldxright):
+            xleft,xright = xright,xleft
+        if not (ytop < ybottom) == (oldytop < oldybottom):
+            ytop,ybottom = ybottom,ytop
         # zoom it
         self.custom_space(xleft, ytop, xright, ybottom, lock_ratio=True)
 
@@ -414,7 +571,6 @@ class Canvas:
                                            xratio=xwidth / float(oldxwidth),
                                            yratio=yheight / float(oldyheight) )
         self.coordspace_transform = transcoeffs
-
 
 
 
@@ -549,28 +705,23 @@ class Canvas:
         """
         options = self._check_options(options)
         
-        path = aggdraw.Path()
-        
         if not hasattr(coords[0], "__iter__"):
             coords = grouper(coords, 2)
         else: coords = (point for point in coords)
+        
+        # get drawing tools from options
+        args = []
+        if options["fillcolor"]:
+            pen = aggdraw.Pen(options["fillcolor"], options["fillsize"])
+            args.append(pen)
 
-        def traverse_straightlines(coords):
-            pathstring = ""
+        if smooth:
+
+            # Note: Creation of the aggdraw.Symbol object here can be
+            # very slow for long lines; Path is much faster but due
+            # to a bug it does not correctly render curves, hence the use
+            # of Symbol
             
-            # begin
-            startx,starty = next(coords)
-            pathstring += " M%s,%s" %(startx, starty)
-            
-            # connect to each successive point
-            for nextx,nexty in coords:
-                pathstring += " L%s,%s" %(nextx, nexty)
-
-            # make into symbol object
-            symbol = aggdraw.Symbol(pathstring)
-            return symbol
-
-        def traverse_curvelines(coords):
             pathstring = ""
             
             # begin
@@ -596,19 +747,24 @@ class Canvas:
 
             # make into symbol object
             symbol = aggdraw.Symbol(pathstring)
-            return symbol
 
-        if smooth: symbol = traverse_curvelines(coords)
-        else: symbol = traverse_straightlines(coords)
-        
-        # get drawing tools from options
-        args = []
-        if options["fillcolor"]:
-            pen = aggdraw.Pen(options["fillcolor"], options["fillsize"])
-            args.append(pen)
+            # draw the constructed symbol
+            self.drawer.symbol((0,0), symbol, *args)
 
-        # draw the constructed path
-        self.drawer.symbol((0,0), symbol, *args)
+        else:
+
+            path = aggdraw.Path()
+            
+            # begin
+            startx,starty = next(coords)
+            path.moveto(startx, starty)
+            
+            # connect to each successive point
+            for nextx,nexty in coords:
+                path.lineto(nextx, nexty)
+
+            # draw the constructed path
+            self.drawer.path((0,0), path, *args)
 
     def draw_polygon(self, coords, holes=[], **options):
         """
@@ -746,8 +902,29 @@ class Canvas:
     # Interactive
 
     def pixel2coord(self, x, y):
+        # partly taken from Sean Gillies "affine.py"
         a,b,c,d,e,f = self.coordspace_transform
-        newx,newy = (x/a - y/b - c, x/d - y/e - f) # ?
+        det = a*e - b*d
+        idet = 1 / float(det)
+        ra = e * idet
+        rb = -b * idet
+        rd = -d * idet
+        re = a * idet
+        newx = (x*ra + y*rb + (-c*ra - f*rb) )
+        newy = (x*rd + y*re + (-c*rd - f*re) )
+        return newx,newy
+
+    def pixel2coord_dist(self, x, y):
+        # partly taken from Sean Gillies "affine.py"
+        a,b,c,d,e,f = self.coordspace_transform
+        det = a*e - b*d
+        idet = 1 / float(det)
+        ra = e * idet
+        rb = -b * idet
+        rd = -d * idet
+        re = a * idet
+        newx = (x*ra)
+        newy = (y*re)
         return newx,newy
 
     def coord2pixel(self, x, y):
