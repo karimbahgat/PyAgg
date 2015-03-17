@@ -194,9 +194,20 @@ def bbox_offset(bbox, xoffset, yoffset):
 
 
 # Main class
+def from_image(img):
+    canvas = Canvas(100, 100)
+    canvas.img = img
+    if not canvas.img.mode in ("RGB","RGBA"):
+        canvas.img = canvas.img.convert("RGBA")
+    canvas.drawer = aggdraw.Draw(canvas.img)
+    canvas.pixel_space()
+    return canvas
+
 def load(filepath):
     canvas = Canvas(100, 100)
     canvas.img = PIL.Image.open(filepath)
+    if not canvas.img.mode in ("RGB","RGBA"):
+        canvas.img = canvas.img.convert("RGBA")
     canvas.drawer = aggdraw.Draw(canvas.img)
     canvas.pixel_space()
     return canvas
@@ -304,9 +315,12 @@ class Canvas:
         Paste the northwest corner of a PIL image
         onto a given pixel location in the Canvas.
         """
+        # Need more options, eg anchor point, and coordinate xy
         self.drawer.flush()
         if isinstance(image, Canvas): image = image.img
-        self.img.paste(image, xy, image)
+        if image.mode == "RGBA":
+            self.img.paste(image, xy, image) # paste using self as transparency mask
+        else: self.img.paste(image, xy)
         self.update_drawer_img()
         return self
 
@@ -541,6 +555,7 @@ class Canvas:
             centered *= affine.Affine.translate(xoff, yoff)
             
         # Note: The sequence of matrix multiplication is important and sensitive.
+        # ...see eg http://negativeprobability.blogspot.no/2011/11/affine-transformations-and-their.html
 
         # scale ie resize world to screen coords
         scalex = self.width / float(xwidth)
@@ -930,7 +945,7 @@ class Canvas:
     def coord2pixel(self, x, y):
         a,b,c,d,e,f = self.coordspace_transform
         newx,newy = (x*a + y*b + c, x*d + y*e + f)
-        return newx,newy
+        return int(newx),int(newy)
 
 
 
