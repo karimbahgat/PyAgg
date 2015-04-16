@@ -22,6 +22,8 @@ OSSYSTEM = {"win32":"windows",
              "linux2":"linux"}[sys.platform]
 
 PYVERSION = sys.version[:3]
+if sys.maxsize == 9223372036854775807: PYBITS = "64"
+else: PYBITS = "32"
 
 SYSFONTFOLDERS = dict([("windows","C:/Windows/Fonts/"),
                        ("mac", "/Library/Fonts/"),
@@ -63,14 +65,20 @@ def GET_FONTPATH(font):
 # Import correct AGG binaries
 try:
     if OSSYSTEM == "windows":
-        if PYVERSION == "2.6": from .precompiled.win.py26 import aggdraw
-        elif PYVERSION == "2.7": from .precompiled.win.py27 import aggdraw
+        if PYBITS == "32":
+            if PYVERSION == "2.6": from .precompiled.win.bit32.py26 import aggdraw
+            elif PYVERSION == "2.7": from .precompiled.win.bit32.py27 import aggdraw
+        elif PYBITS == "64":
+            if PYVERSION == "2.6": raise ImportError("Currently no Windows precompilation for 64-bit Py26")
+            elif PYVERSION == "2.7": from .precompiled.win.bit64.py27 import aggdraw
     elif OSSYSTEM == "mac":
-        if PYVERSION == "2.6": raise ImportError("Currently no Mac precompilation for Py26")
-        elif PYVERSION == "2.7": from .precompiled.mac.py27 import aggdraw
+        if PYBITS == "32":
+            raise ImportError("Currently no Mac precompilation for 32-bit Py26 or Py27")
+        elif PYBITS == "64":
+            if PYVERSION == "2.6": raise ImportError("Currently no Mac precompilation for 64-bit Py26")
+            elif PYVERSION == "2.7": from .precompiled.mac.bit64.py27 import aggdraw
 except ImportError:
     import aggdraw # in case user has compiled a working aggdraw version on their own
-
 
 
 
@@ -604,6 +612,10 @@ class Canvas:
         """
         Draw a circle, normal or flattened.
         """
+        #TEMPORARY DISABLING TRANSFORM TO AVOID CIRCLE ERROR
+        #BUT REALLY NEED MORE FLEXIBLE _CHECKOPTIONS
+        #THAT CAN HANDLE PIXELS/COORDS/PERCENT
+        width = height = 0.02#options["fillsize"]
         options = self._check_options(options)
         args = []
         
@@ -616,11 +628,15 @@ class Canvas:
             
         if xy:
             x,y = xy
-            fillsize = options["fillsize"]
-            width = options["fillwidth"]
-            height = options["fillheight"]
-            width, height = width / self.width * self.coordspace_width, \
-                            height / self.height * self.coordspace_height
+            x,y = self.coord2pixel(x,y)
+            #fillsize = options["fillsize"]
+            #width = options["fillwidth"]
+            #height = options["fillheight"]
+            #width, height = width / self.width * self.coordspace_width, \
+            #                height / self.height * self.coordspace_height
+            width, height = width * self.width, \
+                            height * self.width
+            
             if flatratio: height *= flatratio
             halfwidth, halfheight = width / 2.0, height / 2.0
             bbox = [x-halfwidth, y-halfheight, x+halfwidth, y+halfheight]
@@ -629,7 +645,10 @@ class Canvas:
         
         else: raise Exception("Either xy or bbox has to be specified")
         
+        #self.drawer.pieslice(bbox, 0, 360, *args)
+        self.drawer.settransform()
         self.drawer.ellipse(bbox, *args)
+        self.drawer.settransform(self.coordspace_transform)
 
     def draw_triangle(self, xy=None, bbox=None, **options):
         """
