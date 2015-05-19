@@ -1,3 +1,5 @@
+# Future stuff
+from __future__ import division
 # Check dependencies
 import PIL, PIL.Image, PIL.ImageTk, PIL.ImageDraw, PIL.ImageFont
 # Import builtins
@@ -11,6 +13,7 @@ import random
 PYAGGFOLDER = os.path.split(__file__)[0]
 sys.path.insert(0, PYAGGFOLDER)
 from . import affine
+from . import units
 from fontTools.ttLib import TTFont
 #print TTFont
 #print TTFont("C:/Windows/Fonts/Times.ttf").get("name").names
@@ -63,6 +66,9 @@ def GET_FONTPATH(font):
         
 
 # Import correct AGG binaries
+##sys.path.insert(0, PYAGGFOLDER+"/precompiled/win/bit32/py27")
+##print sys.path
+##import aggdraw
 try:
     if OSSYSTEM == "windows":
         if PYBITS == "32":
@@ -77,6 +83,8 @@ try:
         elif PYBITS == "64":
             if PYVERSION == "2.6": raise ImportError("Currently no Mac precompilation for 64-bit Py26")
             elif PYVERSION == "2.7": from .precompiled.mac.bit64.py27 import aggdraw
+    elif OSSYSTEM == "linux":
+        raise ImportError("Currently no Linux precompilation for any version or bit system")
 except ImportError:
     import aggdraw # in case user has compiled a working aggdraw version on their own
 
@@ -225,11 +233,21 @@ class Canvas:
     This class is a painter's canvas on which to draw with aggdraw.
     """
     
-    def __init__(self, width, height, background=None, mode="RGBA"):
+    def __init__(self, width, height, background=None, mode="RGBA", ppi=300, default_unit="%x"):
+        """
+        Width and height can be set as px for pixels or in, cm, or mm. In
+        the latter case also have to specify ppi(pixels per inch) because
+        pixels are distance agnostic. 
+        """
+        width = units.parse_dist(width, default_unit="px", ppi=ppi)
+        height = units.parse_dist(height, default_unit="px", ppi=ppi)
+        width,height = int(round(width)),int(round(height))
         self.img = PIL.Image.new(mode, (width, height), background)
         self.drawer = aggdraw.Draw(self.img)
         self.background = background
+        self.ppi = ppi
         self.pixel_space()
+        self.default_unit = default_unit
 
     @property
     def width(self):
@@ -606,6 +624,7 @@ class Canvas:
 
 
 
+
     # Drawing
 
     def draw_circle(self, xy=None, bbox=None, flatratio=1, **options):
@@ -615,7 +634,6 @@ class Canvas:
         #TEMPORARY DISABLING TRANSFORM TO AVOID CIRCLE ERROR
         #BUT REALLY NEED MORE FLEXIBLE _CHECKOPTIONS
         #THAT CAN HANDLE PIXELS/COORDS/PERCENT
-        width = height = 0.02#options["fillsize"]
         options = self._check_options(options)
         args = []
         
@@ -629,14 +647,11 @@ class Canvas:
         if xy:
             x,y = xy
             x,y = self.coord2pixel(x,y)
-            #fillsize = options["fillsize"]
-            #width = options["fillwidth"]
-            #height = options["fillheight"]
-            #width, height = width / self.width * self.coordspace_width, \
-            #                height / self.height * self.coordspace_height
-            width, height = width * self.width, \
-                            height * self.width
-            
+            fillsize = options["fillsize"]
+            width = options["fillwidth"]
+            height = options["fillheight"]
+##            width, height = width / self.width * self.coordspace_width, \
+##                            height / self.height * self.coordspace_height
             if flatratio: height *= flatratio
             halfwidth, halfheight = width / 2.0, height / 2.0
             bbox = [x-halfwidth, y-halfheight, x+halfwidth, y+halfheight]
@@ -1016,26 +1031,37 @@ class Canvas:
     # Internal only
 
     def _check_options(self, customoptions):
-        #types
+        # types
         customoptions = customoptions.copy()
-        #paramaters
-        if customoptions.get("fillcolor", "not specified") == "not specified":
-            customoptions["fillcolor"] = [random.randrange(0,255) for _ in xrange(3)]
-        if not customoptions.get("fillsize"):
-            customoptions["fillsize"] = 0.7
+        
+        # fillsize
+        if customoptions.get("fillsize"):
+            customoptions["fillsize"] = units.parse_dist(customoptions["fillsize"],
+                                                         ppi=self.ppi,
+                                                         default_unit=self.default_unit,
+                                                         canvassize=[self.width,self.height])
+        else:
+            customoptions["fillsize"] = units.parse_diststring("0.7%x", ppi=self.ppi, canvassize=[self.width,self.height])
         if not customoptions.get("fillwidth"):
             customoptions["fillwidth"] = customoptions["fillsize"] * 2
         if not customoptions.get("fillheight"):
             customoptions["fillheight"] = customoptions["fillsize"] * 2
+            
+        # outlinewidth
+        if customoptions.get("outlinewidth"):
+            customoptions["outlinewidth"] = units.parse_dist(customoptions["outlinewidth"],
+                                                         ppi=self.ppi,
+                                                         default_unit=self.default_unit,
+                                                         canvassize=[self.width,self.height])
+        else: customoptions["outlinewidth"] = units.parse_diststring("0.07%x", ppi=self.ppi, canvassize=[self.width,self.height])
+        
+        # colors
+        if customoptions.get("fillcolor", "not specified") == "not specified":
+            customoptions["fillcolor"] = [random.randrange(0,255) for _ in xrange(3)]
         if customoptions.get("outlinecolor", "not specified") == "not specified":
             customoptions["outlinecolor"] = (0,0,0)
-        if not customoptions.get("outlinewidth"):
-            customoptions["outlinewidth"] = 0.07 #percent of map
-        #convert relative sizes to pixels
-        customoptions["fillsize"] = self.width * customoptions["fillsize"] / 100.0
-        customoptions["fillwidth"] = self.width * customoptions["fillwidth"] / 100.0
-        customoptions["fillheight"] = self.width * customoptions["fillheight"] / 100.0
-        customoptions["outlinewidth"] = self.width * customoptions["outlinewidth"] / 100.0
+            
+        # finish  
         return customoptions
 
     def _check_text_options(self, customoptions):
