@@ -48,11 +48,11 @@ def test_piechart():
         graph.add_category(str(name),
                            value=value,
                             fillcolor=tuple(random.randrange(255) for _ in range(3)),
-                            fillsize=4,
+                            fillsize="40%min",
                            outlinewidth=1,
                            textsize=38,
                            textfont="segoe ui")
-    return graph.draw(1000, 1000, background=(22,22,22))
+    return graph.draw(2000, 1000, background=(22,22,22))
 
 def test_linegraph():
     xs = range(100)

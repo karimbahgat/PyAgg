@@ -1,0 +1,26 @@
+
+### Coordinate spaces
+
+PyAgg comes packaged with multiple predefined coordinate spaces, including... 
+
+Alternatively you can define your own custom space... 
+
+Define the coordinates that make up each corner of your image once, and watch it follow as you
+resize, crop, rotate, move, and paste the image. Zoom in and out of you coordinate system by boundox box, factor,
+or units, and lock the aspect ratio to avoid distortions.
+
+### Basic Drawing
+
+- Oneliners to easily draw and style high quality graphical elements including polygons with holes, lines with or
+without smooth curves, pie slices, and point symbols like circles, squarea, and triangles with an optional flattening factor.
+- Style your drawing sizes and distances in several types of units, including pixels, percentagea, cm, mm, inches, and
+font points, by specifying the real world size of your image.
+- Smart support for text writing, including text anchoring, and automatic detection of available fonts. 
+- Instantly view your image in a Tkinter pop up window, or prepare it for use in a Tkinter application. 
+
+There is also support for common domain specific data visualization:
+
+- Partial support for geographical plotting, including a lat/long coordinate system, and automatic drawing of
+GeoJSON features. 
+- Easily plot statistical data on graphs witn a syntax and functionality that is aimed more for data analysts and laymen than
+computer scientists, including linegraph, scatterplot, histogram, etc, although these are still a work in progress. 

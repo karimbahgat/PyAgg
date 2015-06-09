@@ -1,4 +1,8 @@
-# pyagg/units.py
+"""
+Parses distances formatted as strings with a unit suffix, converting them
+to pixels.
+Mostly used internally. 
+"""
 
 def px_to_px(diststring):
     diststring = diststring.replace("px", "")
@@ -32,56 +36,97 @@ def cm_to_px(diststring, ppi):
     pixels = inches * ppi
     return pixels
 
+##def x_to_px(diststring, x2px_func):
+##    diststring = diststring.replace("x", "")
+##    xdist = eval(diststring)
+##    pixels = x2px_func(xdist)
+##    return pixels
+##
+##def y_to_px(diststring, y2px_func):
+##    diststring = diststring.replace("y", "")
+##    ydist = eval(diststring)
+##    pixels = y2px_func(ydist)
+##    return pixels
+
 def percwidth_to_px(diststring, width):
-    diststring = diststring.replace("%x", "")
+    diststring = diststring.replace("%w", "")
     perc = float(diststring)
     pixels = width / 100.0 * perc
     return pixels
 
 def percheight_to_px(diststring, height):
-    diststring = diststring.replace("%y", "")
+    diststring = diststring.replace("%h", "")
     perc = float(diststring)
     pixels = height / 100.0 * perc
     return pixels
 
+def percmin_to_px(diststring, width, height):
+    diststring = diststring.replace("%min", "")
+    perc = float(diststring)
+    min_ = min([width,height])
+    pixels = min_ / 100.0 * perc
+    return pixels
+
+def percmax_to_px(diststring, width, height):
+    diststring = diststring.replace("%max", "")
+    perc = float(diststring)
+    max_ = max([width,height])
+    pixels = max_ / 100.0 * perc
+    return pixels
+
 def parse_diststring(diststring, ppi=None, canvassize=None):
-    if "px" in diststring:
+    """
+    Assuming distances are formatted as strings with a unit suffix, converts them
+    to pixels. 
+    """
+    unit = diststring.lstrip('0123456789.-')
+    
+    if unit == "px":
         return px_to_px(diststring)
 
-    elif "pt" in diststring:
+    elif unit == "pt":
         return pt_to_px(diststring, ppi)
 
-    elif "in" in diststring:
+    elif unit == "in":
         return in_to_px(diststring, ppi)
 
-    elif "mm" in diststring:
+    elif unit == "mm":
         return mm_to_px(diststring, ppi)
 
-    elif "cm" in diststring:
+    elif unit == "cm":
         return cm_to_px(diststring, ppi)
 
-    elif "%" in diststring:
+    elif "%" in unit:
         # Somehow get size of canvas object and calculate percent of that
         # or should it be compared to parent object...?
         # But there are no nested hiearchies in PyAgg, only a single canvas
         # Indeed, preferred way is to create subcanvases and paste them into the main one
-        # At least should have "%x" and "%y", or automatic determine if just "%"
+        # At least should have "%w" and "%h", or automatic determine if just "%"
         width, height = canvassize
-        if diststring.endswith("%x"):
+        if unit == "%w":
             return percwidth_to_px(diststring, width)
-        elif diststring.endswith("%y"):
+        elif unit == "%h":
             return percheight_to_px(diststring, height)
+        elif unit == "%min":
+            return percmin_to_px(diststring, width, height)
+        elif unit == "%max":
+            return percmax_to_px(diststring, width, height)
         else:
-            raise Exception("Percent distances must by %x or %y and should be determined relative x or y axis in advance")
+            raise Exception("Percent distances must by %w, %h, %min, or %max, and should be determined relative x or y axis in advance")
 
     else:
         raise Exception("Unable to parse distance string: %s" % diststring)
 
 def parse_dist(dist, ppi=None, default_unit=None, canvassize=None):
-    "can be either nr in text, or pure nr"
+    """
+    Includes preprocessing step that makes sure the distance is formatted as a
+    unit string before it converts it to pixels with the parse_diststring() method.
+    Can be either nr in text, or pure nr. 
+    """
     
     try:
         # if no unit was specified, use default unit of the canvas
+        # ...which should be supplied from the canvas.default_unit attribute
         # ...as set by canvas.set_default_unit("cm")
         float(dist)
         diststring = str(dist)

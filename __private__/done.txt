@@ -1,0 +1,4 @@
+finish docstrings for secure methods
+comment out work in progress methods
+distance measuring for shapes that need filling (circle, box, line, pie)
+when using irregular transform draw them without distorting their shapes by just removing the transform temporarily and then reapplying after drawing

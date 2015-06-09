@@ -1,19 +1,31 @@
 
 TO DO
 
+fix inverse transform pixel2coord
+
+x/y data lengths by converting to pixels
+
+
+
+
+FUTURE
+
+support wrapping text in textbox, with or without box fill and outline
+
+allow multiple text sizes incl percent (not just points)
+
 allow draw svg, using svgfig module to load them
 
-for shapes that need filling (circle, box, line, pie), when using irregular transform find way to draw them without distorting their shapes (eg draw to a new image without setting a transform and using coords2pixel, then merge images (OR just removing the transform temporarily and then reapplying after drawing) )
-
-decide if sizes should use coordinate system units (slower bc has to convert) or pixel units (faster but maybe inconvenient) or if possible to choose bw both for each draw operation via a "units" arg.
 
 
 
 MAYBE
 
-support wrapping text in textbox, with or without box fill and outline
+have each draw op return shape obj that have coords, bounding box, center, and compass directions for placement. 
 
 support drawing lineoutline, by manual calculating line offsets and intersections based on left or right turn (see pydraw)
+
+allow basic gradients
 
 maybe draw circle and square should have fillsize as custom arg instead of part of **kwoptions, but maybe not
 

@@ -3,7 +3,7 @@ import random
 import math
 
 def test_text():
-    canvas = pyagg.Canvas("210mm","297mm", background=(222,222,222))
+    canvas = pyagg.Canvas("210mm","297mm", background=(222,222,222), ppi=96)
     canvas.percent_space()
     
     canvas.draw_line([10,10, 50,90, 90,10],

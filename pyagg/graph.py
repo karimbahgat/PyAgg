@@ -1,3 +1,7 @@
+"""
+Contains classes for different types of graphs, intended for easy use.
+Still a work in progress, and misses several features. 
+"""
 
 import itertools
 import operator
