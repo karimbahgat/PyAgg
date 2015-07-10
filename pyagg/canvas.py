@@ -559,7 +559,8 @@ class Canvas:
 
     def zoom_factor(self, factor, center=None):
         """
-        Zooms n times of previous bbox.
+        Zooms in or out n times of previous bbox. Useful when the zoom is called programmatically and it is
+        not certain which way the zoom will go. 
 
         Parameters:
 
@@ -580,6 +581,28 @@ class Canvas:
         if center:
             newbbox = bboxhelper.center(newbbox, center)
         self.custom_space(*newbbox, lock_ratio=False)
+
+    def zoom_in(self, factor, center=None):
+        """
+        Zooms inwards n times of previous bbox. Same as zoom_factor() with a positive value. 
+
+        Parameters:
+
+        - *factor*: Zoom in factor, 1 or higher. 
+        - *center* (optional): xy coordinate tuple to center/offset the zoom. Defauls to middle of the bbox. 
+        """
+        self.zoom_factor(factor, center)
+
+    def zoom_out(self, factor, center=None):
+        """
+        Zooms outwards n times of previous bbox. Same as zoom_factor() with a negative value. 
+
+        Parameters:
+
+        - *factor*: Zoom out factor, 1 or higher. 
+        - *center* (optional): xy coordinate tuple to center/offset the zoom. Defauls to middle of the bbox. 
+        """
+        self.zoom_factor(-1 * factor, center)        
 
     def zoom_bbox(self, xmin, ymin, xmax, ymax):
         """
@@ -1081,11 +1104,15 @@ class Canvas:
 
         Parameters: 
 
-        - *geojobj*: Takes a GeoJSON dictionary or object that has the \_\_geo_interface__ attribute. 
+        - *geojobj*: Takes a GeoJSON dictionary or object that has the \_\_geo_interface__ attribute. Must be a geometry type, or a feature type with a geometry attribute. 
         - *options*: Keyword args dictionary of draw styling options.
         """
         if isinstance(geojobj, dict): geojson = geojobj
         else: geojson = geojobj.__geo_interface__
+
+        if geojson["type"] == "Feature":
+            geojson = geojson["geometry"]
+            
         geotype = geojson["type"]
         coords = geojson["coordinates"]
         if geotype == "Point":
