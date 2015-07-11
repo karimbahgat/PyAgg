@@ -1045,55 +1045,200 @@ class Canvas:
             
         self.drawer.path((0,0), path, *args)
 
-    def draw_text(self, xy, text, **options):
+    def draw_text(self, text, xy=None, bbox=None, **options):
         """
         Draws basic text.
 
         Parameters:
 
-        - *xy*: The xy location to write the text.
         - *text*: The text string to write.
-        - *options*: Keyword args dictionary of text styling options.
-            This includes textfont, textsize, textcolor, and textanchor.
-            Textfont can be the name, filename, or filepath of a font. 
-            Textanchor can be any compass direction n,ne,e,se,s,sw,w,nw, or center.
+        - *xy* (optional): The xy location to write the text.
+        - *bbox* (optional): The bounding box into which the text should fit instead of xy location.
+            If specified, wraps text where necessary and calculates optimal font size to
+            fit inside the box, ignoring any user specified font size. 
+        - *options* (optional): Keyword args dictionary of text styling options.
+            This includes the usual fillcolor/size and outlinecolor/width and some
+            additional ones.
+            Font is used with the xt argument and can be the name, filename, or filepath of a font. 
+            Anchor is used with the xy argument and can be any compass direction n,ne,e,se,s,sw,w,nw, or center.
+            Justify is used with the bbox argument and can be any left,right,center direction.
+            Padx is used with the bbox argument and specifies the percent x padding between the text and the box.
+            Pady is used with the bbox argument and specifies the percent y padding between the text and the box.
         """
-        x,y = xy
         options = self._check_text_options(options)
 
-        # process text options
-        fontlocation = _get_fontpath(options["textfont"])
-        PIL_drawer = PIL.ImageDraw.Draw(self.img)
+        if xy:
+            x,y = xy
 
-        # PIL doesnt support transforms, so must get the pixel coords of the coordinate
-        x,y = self.coord2pixel(x,y)
-        
-        # get font dimensions
-        font = PIL.ImageFont.truetype(fontlocation, size=options["textsize"]) #, opacity=options["textopacity"])
-        fontwidth, fontheight = font.getsize(text)
-        # anchor
-        textanchor = options["textanchor"].lower()
-        if textanchor == "center":
-            x = int(x - fontwidth/2.0)
-            y = int(y - fontheight/2.0)
-        else:
-            x = int(x - fontwidth/2.0)
-            y = int(y - fontheight/2.0)
-            if "n" in textanchor:
-                y = int(y + fontheight/2.0)
-            elif "s" in textanchor:
-                y = int(y - fontheight/2.0)
-            if "e" in textanchor:
+            # process text options
+            fontlocation = _get_fontpath(options["font"])
+            PIL_drawer = PIL.ImageDraw.Draw(self.img)
+
+            # PIL doesnt support transforms, so must get the pixel coords of the coordinate
+            x,y = self.coord2pixel(x,y)
+            
+            # get font dimensions
+            font = PIL.ImageFont.truetype(fontlocation, size=options["fillsize"]) #, opacity=options["textopacity"])
+            fontwidth, fontheight = font.getsize(text)
+            
+            # anchor
+            textanchor = options["anchor"].lower()
+            if textanchor == "center":
                 x = int(x - fontwidth/2.0)
-            elif "w" in textanchor:
-                x = int(x + fontwidth/2.0)
+                y = int(y - fontheight/2.0)
+            else:
+                x = int(x - fontwidth/2.0)
+                y = int(y - fontheight/2.0)
+                if "n" in textanchor:
+                    y = int(y + fontheight/2.0)
+                elif "s" in textanchor:
+                    y = int(y - fontheight/2.0)
+                if "e" in textanchor:
+                    x = int(x - fontwidth/2.0)
+                elif "w" in textanchor:
+                    x = int(x + fontwidth/2.0)
 
-        # then draw text
-        self.drawer.flush()
-        # for text wrapping inside bbox, see: http://stackoverflow.com/questions/1970807/center-middle-align-text-with-pil
-        # ...
-        PIL_drawer.text((x,y), text, fill=options["textcolor"], font=font)
-        
+            # then draw text
+            self.drawer.flush()
+            PIL_drawer.text((x,y), text, fill=options["fillcolor"], font=font)
+
+        elif bbox:
+            # SORT OF WORKS...
+            # BUT MIGHT NEED TO MAKE THE ADJUSTING RECURSIVE...
+            # ACTUALLY WHEN TRYING DIFFERENT BOX SIZES,
+            #   MAKES THE SIZE TOO SMALL IF BOX IS TOO NARROW
+            #   AND THE WRAP TOO FREQUENT IF BOX IS TOO HIGH
+            # FINALLY ADD PAD AND JUSTIFY OPTIONS...
+            
+            # draw background box and or outline
+            self.draw_box(bbox=bbox, fillcolor="white")
+
+            # dynamically decide optimal font size and wrap length
+            # see: http://stackoverflow.com/questions/1970807/center-middle-align-text-with-pil            
+            import textwrap
+
+            #### use pad args to determine new smaller bbox
+            # ...
+
+            #### get bbox with and height in pixels
+            xmin,ymin,xmax,ymax = bbox
+            xmin,ymin = self.coord2pixel(xmin,ymin)
+            xmax,ymax = self.coord2pixel(xmax,ymax)
+            boxwidth = xmax - xmin
+            boxheight = ymax - ymin
+            
+            # process text options
+            fontlocation = _get_fontpath(options["font"])
+            PIL_drawer = PIL.ImageDraw.Draw(self.img)
+
+            #### get font dimensions of arbitrary fontsize and no wrapping, and measure width and height
+            font = PIL.ImageFont.truetype(fontlocation, size=options["fillsize"]) #, opacity=options["textopacity"])
+            fontwidth, fontheight = font.getsize(text)
+            
+            #### compare that with the bbox, use how much went over/under to
+            ####    calculate new wrap length
+            widthratio = fontwidth / float(boxwidth)
+            wraplength = int( len(text) / widthratio )
+            textlines = textwrap.wrap(text, width=wraplength)
+
+            #### and change to optimal font size?
+            # this approach only tries make everything fit on one line,
+            #   but need to find a balance between wrapping text and resizing
+##            newsize = int(options["fillsize"] / float(widthratio) )
+##            font = PIL.ImageFont.truetype(fontlocation, size=newsize) #, opacity=options["textopacity"])
+##            fontwidth, fontheight = font.getsize(text)               
+##            textlines = [text]
+
+            # this approach uses the amount that wrapped textlines exceeds the box height
+##            wrapped_fontheight = fontheight * len(textlines) # + pady * len(textlines)
+##            if wrapped_fontheight > boxheight:
+##                heightratio = wrapped_fontheight / float(boxheight)
+##                print wrapped_fontheight, boxheight, heightratio
+##                
+##                #ideallines = int( len(textlines) / float(heightratio) )
+##                #linesover = len(textlines) / ideallines
+##                #charsover = wraplength * linesover
+##                #widthratio = (wraplength + charsover) / wraplength
+##                #print heightratio, linesover, charsover, widthratio
+##                #widthratio = fontwidth / widthratio 
+##                
+##                # NOTE: fontsize / ratio is slightly wrong, cus fontsize doesn not incr linearly
+##                #       thus it sometimes shrinks the font by too much, not utilizing all the space.
+##                newsize = int(options["fillsize"] / float(heightratio) ) # rounds down for safety
+##                font = PIL.ImageFont.truetype(fontlocation, size=newsize) #, opacity=options["textopacity"])
+##                fontwidth, fontheight = font.getsize(text)               
+
+            # this approach uses the amount that wrapped textlines exceeds the box height
+##            wrapped_fontheight = fontheight * len(textlines) # + pady * len(textlines)
+##            if wrapped_fontheight > boxheight:
+##                heightratio = wrapped_fontheight / float(boxheight)
+##                # NOTE: fontsize / ratio is wrong, cus fontsize doesn not incr linearly
+##                newsize = int(options["fillsize"] / float(heightratio) ) # rounds down for safety
+##                font = PIL.ImageFont.truetype(fontlocation, size=newsize) #, opacity=options["textopacity"])
+##                fontwidth, fontheight = font.getsize(text)               
+
+            # this approach incrementally cuts size in half or doubles it until within 20 percent of desired height
+            # FINALLY WORKS, BUT SLIGHTLY MESSY SO NEEDS TIDYING
+            # ALSO NEED TO PROTECT AGAINST INF LOOPS, CUS COULD BE THAT TWO SIZES NEXT ARE EITHER TOO SMALL OR TOO BIG OUTSIDE OF THRESH
+            # ALSO NEED TO MAKE SURE ONLY TO CHOOSE THE SIZE WHOSE RATIO IS SMALLER THAN (IE CONTAINED BY) THE BOX
+            wrapped_fontheight = fontheight * len(textlines) # + pady * len(textlines)
+            wrapped_fontheight_ratio = wrapped_fontheight / float(boxheight)
+            newsize = int(round(options["fillsize"] * wrapped_fontheight_ratio )) # rounds down for safety
+            font = PIL.ImageFont.truetype(fontlocation, size=newsize) #, opacity=options["textopacity"])
+            fontwidth, fontheight = font.getsize(text)
+            prev_ratio = wrapped_fontheight_ratio
+            prevsize = options["fillsize"]
+            wrapped_fontheight = fontheight * len(textlines) # + pady * len(textlines)
+            wrapped_fontheight_ratio = wrapped_fontheight / float(boxheight)
+            while wrapped_fontheight_ratio > 1.2 or wrapped_fontheight_ratio < 0.8:
+                print prevsize, prev_ratio, newsize, wrapped_fontheight_ratio
+                _prevsize = newsize
+                if wrapped_fontheight_ratio < 1:
+                    if prev_ratio > 1:
+                        # cut incr in half if crossed 1 thresh
+                        newsize = int(round((prevsize + newsize) / 2.0))
+                    else:
+                        newsize *= 2
+                elif wrapped_fontheight_ratio > 1:
+                    if prev_ratio < 1:
+                        # cut incr in half if crossed 1 thresh
+                        newsize = int(round((prevsize + newsize) / 2.0))
+                    else:
+                        newsize = int(round(newsize / 2.0))
+                font = PIL.ImageFont.truetype(fontlocation, size=newsize) #, opacity=options["textopacity"])
+                fontwidth, fontheight = font.getsize(text)
+                #rewrap
+                widthratio = fontwidth / float(boxwidth)
+                wraplength = int( len(text) / widthratio )
+                textlines = textwrap.wrap(text, width=wraplength)
+                #update params
+                prev_ratio = wrapped_fontheight_ratio
+                prevsize = _prevsize
+                wrapped_fontheight = fontheight * len(textlines) # + pady * len(textlines)
+                wrapped_fontheight_ratio = wrapped_fontheight / float(boxheight)
+                #when incr becomes too small, further iterations wont make any difference
+                #if int(round(newsize + incr)) == newsize:
+                #    break 
+
+            #### and rewrap using new fontsize
+            widthratio = fontwidth / float(boxwidth)
+            wraplength = int( len(text) / widthratio )
+            textlines = textwrap.wrap(text, width=wraplength)
+
+            #### try again and make sure, because some chars and therefore lines
+            #      are wider than others
+            # ...
+
+            # PIL doesnt support transforms, so must get the pixel coords of the coordinate
+            # Currently xy here is not very accurate
+            x,y = xmin,ymin # already converted earlier
+
+            # wrap text into lines, and write each line
+            self.drawer.flush()
+            for textline in textlines:
+                PIL_drawer.text((x,y), textline, fill=options["fillcolor"], font=font)
+                y += fontheight
+
         # update changes to the aggdrawer, and remember to reapply transform
         self.drawer = aggdraw.Draw(self.img)
         self.drawer.settransform(self.coordspace_transform)
@@ -1336,17 +1481,17 @@ class Canvas:
     def _check_text_options(self, customoptions):
         customoptions = customoptions.copy()
         #text and font
-        if not customoptions.get("textfont"):
-            customoptions["textfont"] = "Arial"
+        if not customoptions.get("font"):
+            customoptions["font"] = "Arial"
             
         # RIGHT NOW, TEXTSIZE IS PERCENT OF IMAGE SIZE, BUT MAYBE USE NORMAL SIZE INSTEAD
         # see: http://stackoverflow.com/questions/4902198/pil-how-to-scale-text-size-in-relation-to-the-size-of-the-image
 
-        if not customoptions.get("textsize"):
+        if not customoptions.get("fillsize"):
             #customoptions["textsize"] = int(round(self.width*0.0055)) #equivalent to textsize 7
-            customoptions["textsize"] = 8
+            customoptions["fillsize"] = 8
         else:
-            customoptions["textsize"] = int(round(customoptions["textsize"]))
+            customoptions["fillsize"] = int(round(customoptions["fillsize"]))
             #input is percent textheight of MAPWIDTH
             #percentheight = customoptions["textsize"]
             #so first get pixel height
@@ -1354,14 +1499,14 @@ class Canvas:
             #to get textsize
             #textsize = int(round(pixelheight*0.86))
             #customoptions["textsize"] = textsize
-        if not customoptions.get("textcolor"):
-            customoptions["textcolor"] = (0,0,0)
+        if not customoptions.get("fillcolor"):
+            customoptions["fillcolor"] = (0,0,0)
 ##        if not customoptions.get("textopacity"):
 ##            customoptions["textopacity"] = 255
 ##        if not customoptions.get("texteffect"):
 ##            customoptions["texteffect"] = None
-        if not customoptions.get("textanchor"):
-            customoptions["textanchor"] = "center"
+        if not customoptions.get("anchor"):
+            customoptions["anchor"] = "center"
         #text background box
 ##        if not customoptions.get("textboxfillcolor"):
 ##            customoptions["textboxfillcolor"] = None
