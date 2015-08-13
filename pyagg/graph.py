@@ -153,6 +153,12 @@ class LineGraph:
     def add_category(self, name, xvalues, yvalues, **kwargs):
         if len(xvalues) != len(yvalues):
             raise Exception("x and y series must be same length")
+        # default options
+        kwargs = kwargs.copy()
+        if not "placelabel" in kwargs:
+            kwargs["placelabel"] = "lineend"
+        if not "labelsize" in kwargs:
+            kwargs["labelsize"] = 32
         self.categories[name] = {"x":xvalues, "y":yvalues, "options":kwargs}
 
     def draw(self, width, height, background=(0,0,0)):
@@ -166,6 +172,10 @@ class LineGraph:
             valuepairs = zip(dict["x"], dict["y"])
             flat = [xory for xy in valuepairs for xory in xy]
             canvas.draw_line(flat, **dict["options"])
+            # test add label next to last line point
+            if dict["options"]["placelabel"] == "lineend":
+                canvas.draw_text(category, xy=valuepairs[-1],
+                                 fillsize=dict["options"]["labelsize"])
         #canvas.draw_text((xmax,ymin), unicode(xmax), textcolor=(222,222,222))
         #canvas.draw_text((xmin,ymax), unicode(ymax), textcolor=(222,222,222))
         #canvas.draw_text((xmin+5,ymin), unicode(xmin), textcolor=(222,222,222))
