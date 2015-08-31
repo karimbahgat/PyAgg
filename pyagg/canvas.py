@@ -1149,10 +1149,8 @@ class Canvas:
             PIL_drawer.text((x,y), text, fill=options["textcolor"], font=font)
 
         elif bbox:
-            # WORKS!
             # dynamically decides optimal font size and wrap length
-            # TODO:
-            #    MAKE AUTOSIZE OPTIONAL, OR ONLY IF TEXT BIGGER THAN BOX
+            # TODO: currently only respects pady, not padx
 
             # load or set default background box options
             bboxoptions = dict()
@@ -1186,7 +1184,7 @@ class Canvas:
             halfpadx = padx / 2.0
             xmin = xmin + halfpadx
             xmax = xmax - halfpadx
-            # pady
+            #pady
             if "pady" in options:
                 pady = options["pady"]
             else:
@@ -1198,7 +1196,7 @@ class Canvas:
             halfpady = pady / 2.0
             ymin = ymin + halfpady
             ymax = ymax - halfpady
-            # update bbox
+            #update bbox
             boxwidth = xmax - xmin
             boxheight = ymax - ymin
             bbox = [xmin,ymin,xmax,ymax]
@@ -1207,78 +1205,72 @@ class Canvas:
             fontlocation = _get_fontpath(options["font"])
             PIL_drawer = PIL.ImageDraw.Draw(self.img)
 
-            #### get font dimensions of user specified fontsize and no wrapping, and measure width and height
-            font = PIL.ImageFont.truetype(fontlocation, size=options["textsize"]) #, opacity=options["textopacity"])
-            fontwidth, fontheight = font.getsize(text)
-            
-            #### compare that with the bbox, use how much went over/under to
-            ####    calculate new wrap length
-            widthratio = fontwidth / float(boxwidth)
-            wraplength = int( len(text) / widthratio )
-            textlines = textwrap.wrap(text, width=wraplength)
-
-            #### based on previous information make a first guess at optimal font size based on
-            #    how much the total height of the wrapped text using the new font size went
-            #    over or under the box height
-            # TODO:
-            # SLIGHTLY MESSY SO NEEDS TIDYING
-            # ALSO NEED TO PROTECT AGAINST INFINITE LOOPS, CUS COULD BE THAT TWO SIZES NEXT ARE EITHER TOO SMALL OR TOO BIG OUTSIDE OF THRESH
-            # ALSO NEED TO MAKE SURE ONLY TO CHOOSE THE SIZE WHOSE RATIO IS SMALLER THAN (IE CONTAINED BY) THE BOX
-            # ALSO PROTECT AGAINST WRAPLENGTH OF 0 BY DECR SIZE
-            wrapped_fontheight = fontheight * len(textlines) # + pady * len(textlines)
-            wrapped_fontheight_ratio = wrapped_fontheight / float(boxheight)
-            newsize = int(round(options["textsize"] * wrapped_fontheight_ratio )) # rounds down for safety
-            font = PIL.ImageFont.truetype(fontlocation, size=newsize) #, opacity=options["textopacity"])
-            fontwidth, fontheight = font.getsize(text)
-            prev_ratio = wrapped_fontheight_ratio
-            prevsize = options["textsize"]
-            wrapped_fontheight = fontheight * len(textlines) # + pady * len(textlines)
-            wrapped_fontheight_ratio = wrapped_fontheight / float(boxheight)
-            
             #### incrementally cut size in half or double it until within 20 percent of desired height
-            while wrapped_fontheight_ratio > 1.2 or wrapped_fontheight_ratio < 0.8:
-                _prevsize = newsize
-                if wrapped_fontheight_ratio < 1:
-                    if prev_ratio > 1:
-                        # if last size change went from too big to too small
-                        # then the optimal size should be somewhere in between
-                        # so try the midpoint between the previous and current size
-                        newsize = int(round((prevsize + newsize) / 2.0))
-                    else:
-                        # otherwise, since the height ratio is too small, double the new size
-                        newsize *= 2
-                elif wrapped_fontheight_ratio > 1:
-                    if prev_ratio < 1:
-                        # if last size change went from too small to too big
-                        # then the optimal size should be somewhere in between
-                        # so try the midpoint between the previous and current size
-                        newsize = int(round((prevsize + newsize) / 2.0))
-                    else:
-                        # otherwise, since the height ratio is too big, cut in half the new size
-                        newsize = int(round(newsize / 2.0))
-                font = PIL.ImageFont.truetype(fontlocation, size=newsize) #, opacity=options["textopacity"])
+            infiloop = False
+            prevsize = None
+            cursize = options["textsize"]
+            nextsize = None
+            while True:                
+                # calculate size metrics for current
+                font = PIL.ImageFont.truetype(fontlocation, size=cursize) #, opacity=options["textopacity"])
                 fontwidth, fontheight = font.getsize(text)
-                # rewrap
-                # NOTE: if widthratio is bigger than nr of text chars
-                #       then wraplength will be 0 (the max possible is wrapping a text at every 1 char)
-                #       which means font size is too big to be wrapped so need to decrease it again somehow...
                 widthratio = fontwidth / float(boxwidth)
                 wraplength = int( len(text) / widthratio )
+                if wraplength < 1:
+                    # minimum wrap length is wrapping a text at every 1 char
+                    # ...any lower than that means font size is too big to be
+                    # ...wrapped, so halve the size and continue.
+                    ### print("size too big to be tested, halve it!")
+                    nextsize = int(round(cursize/2.0))
+                    prevsize = cursize
+                    cursize = nextsize
+                    continue
                 textlines = textwrap.wrap(text, width=wraplength)
-                # update params
-                prev_ratio = wrapped_fontheight_ratio
-                prevsize = _prevsize
                 wrapped_fontheight = fontheight * len(textlines) # + pady * len(textlines)
                 wrapped_fontheight_ratio = wrapped_fontheight / float(boxheight)
 
-            #### and rewrap using new fontsize
-            widthratio = fontwidth / float(boxwidth)
-            wraplength = int( len(text) / widthratio )
-            textlines = textwrap.wrap(text, width=wraplength)
+                # exit if size is within the box and almost fills it
+                if 0.8 <= wrapped_fontheight_ratio <= 1:
+                    break
 
-            #### try again and make sure, because some chars and therefore lines
-            #      are wider than others
-            # ...
+                # break out of infinite loop between two almost same sizes
+                if infiloop:
+                    ### print("infinite loop, break!")
+                    break
+
+                # check if too big or small
+                toobig = False
+                toosmall = False
+                if wrapped_fontheight_ratio < 1:
+                    toosmall = True
+                else:
+                    toobig = True
+
+                # mark as infinite loop once increments get smaller than 1
+                if prevsize and cursize-prevsize in (-1,0,1):
+                    infiloop = True
+                    # make sure to choose the smaller of the two repeating sizes, so fits inside box
+                    if toobig:
+                        nextsize = cursize-1
+
+                # or if prev change went too far, try in between prev and cur size
+                elif prevsize and ((toosmall and prevsize > cursize) or (toobig and prevsize < cursize)):
+                    ### print("too far, flip!")
+                    nextsize = int(round((prevsize + cursize) / 2.0))
+
+                # otherwise double or halve size based on fit
+                else:
+                    if toobig:
+                        nextsize = int(round(cursize / 2.0))
+                        ### print("too big!")
+                    elif toosmall:
+                        nextsize = cursize * 2
+                        ### print("too small!")
+
+                # update vars for next iteration
+                ### print(prevsize, cursize, nextsize)
+                prevsize = cursize
+                cursize = nextsize
 
             # PIL doesnt support transforms, so must get the pixel coords of the coordinate
             # here only for y, because x is handled for each line depending on justify option below
