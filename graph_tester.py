@@ -11,7 +11,7 @@ def test_smoothline():
                      smooth=True,
                      fillcolor=(222,0,0),
                      fillsize=2)
-    canvas.draw_text((50,50), "Hello", textfont="segoe print bold", textsize=55)
+    canvas.draw_text("Hello", (50,50), textfont="segoe print bold", textsize=55)
     return canvas
 
 def test_histogram():

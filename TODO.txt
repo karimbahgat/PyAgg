@@ -1,16 +1,30 @@
 
 TO DO
 
+add lineoutline calculation and thus varying lineflow/volume option!
+OR maybe just calculate left and right sides and draw line with path or symbol which allows curveto and outline.
+SO eg, instead of drawing a polygon with full coordinates for round joins, 
+just calculate linewidth sides and bezier points using curveto, which handles the outline for you. 
+OR just do the line fill using the standard line drawing which should allow joins and caps in modified sourcecode,
+then only for outline calculate the path and curveto, but maybe slower bc two operations, and wont allow varying thickness?
+
+add basic image coloring/tinting ops
+
 fix inverse transform pixel2coord
 
 x/y data lengths by converting to pixels
+
+make coordsys follow all image ops (rotate, flip, etc)
+
+fix piechart label placement with some custom coordinate calculation...? or by returning bbox info for each drawn shape (see below)?
+
+add all chart label functionality properly working
+
 
 
 
 
 FUTURE
-
-support wrapping text in textbox, with or without box fill and outline
 
 allow multiple text sizes incl percent (not just points)
 

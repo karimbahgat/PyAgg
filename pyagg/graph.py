@@ -95,7 +95,7 @@ class BarChart:
             for barlabel,barvalue in itertools.izip(dict["barlabels"], dict["bars"]):
                 flat = [curx,0, curx+self.barwidth,0, curx+self.barwidth,barvalue, curx,barvalue]
                 canvas.draw_polygon(flat, **dict["options"])
-                canvas.draw_text((curx+self.barwidth/2.0,0), unicode(barlabel), textcolor="white", textanchor="n", textsize=12)
+                canvas.draw_text(unicode(barlabel), xy=(curx+self.barwidth/2.0,0), textcolor="white", textanchor="n", textsize=12)
                 curx += self.barwidth + self.bargap
             baroffset += self.barwidth
         # return the drawed canvas
@@ -135,7 +135,7 @@ class PieChart:
             midrad = math.radians(midangle)
             size = 20 #category["options"]["fillsize"] / 2.0
             tx,ty = 0 + size * math.cos(midrad), 0 - size * math.sin(midrad)
-            canvas.draw_text((tx,ty), name, **category["options"])
+            canvas.draw_text(name, (tx,ty), **category["options"])
             curangle += degrees
         return canvas
             

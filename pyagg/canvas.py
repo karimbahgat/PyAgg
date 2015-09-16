@@ -26,6 +26,7 @@ PYAGGFOLDER = os.path.split(__file__)[0]
 from . import affine
 from . import units
 from . import bboxhelper
+from . import fonthelper
 
 ##############################
 # Determine OS and bitsystem
@@ -36,59 +37,6 @@ OSSYSTEM = {"win32":"windows",
 PYVERSION = sys.version[:3]
 if sys.maxsize == 9223372036854775807: PYBITS = "64"
 else: PYBITS = "32"
-
-##############################
-# Retrieve system fonts
-FONTNAMES = dict()
-FONTFILENAMES = dict()
-try:
-    sys.path.insert(0, PYAGGFOLDER)
-    from fontTools.ttLib import TTFont
-    SYSFONTFOLDERS = dict([("windows","C:/Windows/Fonts/"),
-                           ("mac", "/Library/Fonts/"),
-                           ("linux", "/usr/share/fonts/truetype/")])
-    FONTFILENAMES = dict([(filename.lower(), os.path.join(dirpath, filename))
-                           for dirpath,dirnames,filenames in os.walk(SYSFONTFOLDERS[OSSYSTEM])
-                          for filename in filenames
-                          if filename.endswith(".ttf")])
-    for filename in FONTFILENAMES.keys():
-        metadata = TTFont(FONTFILENAMES[filename]).get("name")
-        for info in metadata.names:
-            if info.nameID == 4: # font family name with optional bold/italics
-                if info.string.startswith("\x00"):
-                    # somehow the font string has weird byte data in first position and between each character
-                    fontname = info.string[1::2]
-                else:
-                    fontname = info.string
-                break
-        FONTNAMES.update([(fontname.lower(), filename)])
-except:
-    msg = "\n".join(["%s" % traceback.format_exc(),
-                     "-----------------",
-                     "Due to an error, could not determine the font names available for your system.",
-                     "Using font names when setting text font will therefore not work.",
-                     "Instead you must specify the font filename or filepath for it to work.",
-                     "-----------------"
-                     ])
-    warnings.warn(msg)
-finally:
-    sys.path = sys.path[1:] # remove previously added fontTools path
-
-##############################
-# create function for getting fonts
-def _get_fontpath(font):
-    font = font.lower()
-    # first try to get human readable name from custom list
-    if FONTNAMES.get(font):
-        return os.path.join(SYSFONTFOLDERS[OSSYSTEM], FONTFILENAMES[FONTNAMES[font]])
-    # then try to get from custom font filepath
-    elif os.path.lexists(font):
-        return font
-    # or try to get from filename in font folder
-    elif FONTFILENAMES.get(font):
-        return FONTFILENAMES[font]
-    # raise error if hasnt succeeded yet
-    raise Exception("Could not find the font specified. Font must be either a human-readable name, a filename with extension in the default font folder, or a full path to the font file location")
 
 ##############################     
 # Import correct AGG binaries
@@ -302,6 +250,8 @@ class Canvas:
         self.drawer.flush()
         self.img = self.img.rotate(degrees, PIL.Image.BICUBIC)
         self.update_drawer_img()
+        # Somehow update the drawtransform/coordspace to follow the image change operation
+        # ...
         return self
 
 ##    def skew(self):
@@ -332,6 +282,8 @@ class Canvas:
         if yflip: img = img.transpose(PIL.Image.FLIP_TOP_BOTTOM)
         self.img = img
         self.update_drawer_img()
+        # Somehow update the drawtransform/coordspace to follow the image change operation
+        # ...
         return self
 
     def move(self, xmove, ymove):
@@ -409,6 +361,7 @@ class Canvas:
                              canvassize=[self.width,self.height])
         xy = (x,y)
         # Need more options, eg anchor point, and coordinate xy
+        # ...
         self.drawer.flush()
         if isinstance(image, Canvas): image = image.img
         if image.mode == "RGBA":
@@ -488,6 +441,11 @@ class Canvas:
 ##        self.img = blank.paste(self.img, (0,0), alpha)
 ##        self.update_drawer_img()
 ##        return self
+##
+##    def transparent_color(self, color, alpha, tolerance=0):
+##        # make all specified color values transparent (alpha)
+##        # ...alternatively with a tolerance for almost matching colors
+##        pass
 ##
 ##    def color_tint():
 ##        # add rgb color to each pixel
@@ -950,6 +908,16 @@ class Canvas:
             # very slow for long lines; Path is much faster but due
             # to a bug it does not correctly render curves, hence the use
             # of Symbol
+
+            # Todo: Maybe use smooth bezier instead which passes through
+            # the full start and end points and still connects them smoothly.
+##            pathstring = ""
+##            coords = (c for c in coords)
+##            pathstring += " M%s,%s" %next(coords)
+##            pathstring += " L%s,%s" %next(coords)
+##            # for each line
+##            for nextx,nexty in coords:
+##                pathstring += " T%s,%s" %(nextx,nexty)
             
             pathstring = ""
             
@@ -1072,7 +1040,7 @@ class Canvas:
             x,y = xy
 
             # process text options
-            fontlocation = _get_fontpath(options["font"])
+            fontlocation = fonthelper.get_fontpath(options["font"])
 
             # PIL doesnt support transforms, so must get the pixel coords of the coordinate
             x,y = self.coord2pixel(x,y)
@@ -1202,7 +1170,7 @@ class Canvas:
             bbox = [xmin,ymin,xmax,ymax]
             
             #### process text options
-            fontlocation = _get_fontpath(options["font"])
+            fontlocation = fonthelper.get_fontpath(options["font"])
             PIL_drawer = PIL.ImageDraw.Draw(self.img)
 
             #### incrementally cut size in half or double it until within 20 percent of desired height
