@@ -1101,8 +1101,10 @@ class Canvas:
             
             #### draw background box and or outline
             if bboxoptions["fillcolor"] or bboxoptions["outlinecolor"]:
-                xmin,ymin = self.pixel2coord(x, y)
-                xmax,ymax = self.pixel2coord(x+fontwidth, y+fontheight)
+                x1,y1 = self.pixel2coord(x, y)
+                x2,y2 = self.pixel2coord(x+fontwidth, y+fontheight)
+                xmin,ymin = min((x1,x2)),min((y1,y2))
+                xmax,ymax = max((x1,x2)),max((y1,y2))
                 bbox = [xmin,ymin,xmax,ymax]
                 boxwidth, boxheight = xmax-xmin, ymax-ymin
 
@@ -1159,8 +1161,10 @@ class Canvas:
 
             #### get bbox with and height in pixels
             xmin,ymin,xmax,ymax = bbox
-            xmin,ymin = self.coord2pixel(xmin,ymin)
-            xmax,ymax = self.coord2pixel(xmax,ymax)
+            x1,y1 = self.coord2pixel(xmin,ymin)
+            x2,y2 = self.coord2pixel(xmax,ymax)
+            xmin,ymin = min((x1,x2)),min((y1,y2))
+            xmax,ymax = max((x1,x2)),max((y1,y2))
             boxwidth = xmax - xmin
             boxheight = ymax - ymin
 
