@@ -74,7 +74,21 @@ def percmax_to_px(diststring, width, height):
     pixels = max_ / 100.0 * perc
     return pixels
 
-def parse_diststring(diststring, ppi=None, canvassize=None):
+def x_to_px(diststring, width, coordwidth):
+    diststring = diststring.replace("x", "")
+    x = eval(diststring)
+    relx = x / float(coordwidth)
+    pixels = width * relx
+    return pixels
+
+def y_to_px(diststring, height, coordheight):
+    diststring = diststring.replace("y", "")
+    y = eval(diststring)
+    rely = y / float(coordheight)
+    pixels = height * rely
+    return pixels
+
+def parse_diststring(diststring, ppi=None, canvassize=None, coordsize=None):
     """
     Assuming distances are formatted as strings with a unit suffix, converts them
     to pixels. 
@@ -95,6 +109,16 @@ def parse_diststring(diststring, ppi=None, canvassize=None):
 
     elif unit == "cm":
         return cm_to_px(diststring, ppi)
+
+    elif unit == "x":
+        width, height = canvassize
+        coordwidth, coordheight = coordsize
+        return x_to_px(diststring, width, coordwidth)
+
+    elif unit == "y":
+        width, height = canvassize
+        coordwidth, coordheight = coordsize
+        return y_to_px(diststring, height, coordheight)
 
     elif "%" in unit:
         # Somehow get size of canvas object and calculate percent of that
@@ -117,7 +141,7 @@ def parse_diststring(diststring, ppi=None, canvassize=None):
     else:
         raise Exception("Unable to parse distance string: %s" % diststring)
 
-def parse_dist(dist, ppi=None, default_unit=None, canvassize=None):
+def parse_dist(dist, ppi=None, default_unit=None, canvassize=None, coordsize=None):
     """
     Includes preprocessing step that makes sure the distance is formatted as a
     unit string before it converts it to pixels with the parse_diststring() method.
@@ -135,7 +159,7 @@ def parse_dist(dist, ppi=None, default_unit=None, canvassize=None):
     except:
         diststring = dist
 
-    pixels = parse_diststring(diststring, ppi, canvassize)
+    pixels = parse_diststring(diststring, ppi, canvassize, coordsize)
     return pixels
 
 

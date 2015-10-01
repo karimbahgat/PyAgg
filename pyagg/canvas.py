@@ -221,11 +221,13 @@ class Canvas:
         width = units.parse_dist(width,
                                  ppi=self.ppi,
                                  default_unit="px",
-                                 canvassize=[self.width,self.height])
+                                 canvassize=[self.width,self.height],
+                                 coordsize=[self.coordspace_width,self.coordspace_height])
         height = units.parse_dist(height,
                                  ppi=self.ppi,
                                  default_unit="px",
-                                 canvassize=[self.width,self.height])
+                                 canvassize=[self.width,self.height],
+                                 coordsize=[self.coordspace_width,self.coordspace_height])
         self.img = self.img.resize((width, height), PIL.Image.ANTIALIAS)
         self.update_drawer_img()
         # Then update coordspace to match the new image dimensions
@@ -307,11 +309,13 @@ class Canvas:
         xmove = units.parse_dist(xmove,
                                  ppi=self.ppi,
                                  default_unit="px",
-                                 canvassize=[self.width,self.height])
+                                 canvassize=[self.width,self.height],
+                                 coordsize=[self.coordspace_width,self.coordspace_height])
         ymove = units.parse_dist(ymove,
                                  ppi=self.ppi,
                                  default_unit="px",
-                                 canvassize=[self.width,self.height])
+                                 canvassize=[self.width,self.height],
+                                 coordsize=[self.coordspace_width,self.coordspace_height])
         # paste self on blank at offset pixel coords
         self.drawer.flush()
         blank = PIL.Image.new(self.img.mode, self.img.size, None)
@@ -319,7 +323,7 @@ class Canvas:
         self.img = blank
         # similarly move the drawing transform
         # by converting pixels to coord distances
-        xmove,ymove = self.pixel2coord_dist(xmove, ymove)
+        xmove,ymove = self.pixel2coord(xmove, ymove)   # REDO LATER
         orig = affine.Affine(*self.coordspace_transform)
         moved = orig * affine.Affine.translate(xmove,ymove)
         self.drawer = aggdraw.Draw(self.img)
@@ -356,11 +360,13 @@ class Canvas:
         x = units.parse_dist(x,
                              ppi=self.ppi,
                              default_unit="px",
-                             canvassize=[self.width,self.height])
+                             canvassize=[self.width,self.height],
+                             coordsize=[self.coordspace_width,self.coordspace_height])
         y = units.parse_dist(y,
                              ppi=self.ppi,
                              default_unit="px",
-                             canvassize=[self.width,self.height])
+                             canvassize=[self.width,self.height],
+                             coordsize=[self.coordspace_width,self.coordspace_height])
         
         # Anchor
         anchor = anchor.lower()
@@ -1338,6 +1344,24 @@ class Canvas:
 
     # Interactive
 
+    @property
+    def coordspace_invtransform(self):
+        # the inverse coefficients to go from pixel space to coordinates
+        # taken from Sean Gillies' "affine.py"
+        a,b,c,d,e,f = self.coordspace_transform
+        det = a*e - b*d
+        if det != 0:
+            idet = 1 / float(det)
+            ra = e * idet
+            rb = -b * idet
+            rd = -d * idet
+            re = a * idet
+            a,b,c,d,e,f = (ra, rb, -c*ra - f*rb,
+                           rd, re, -c*rd - f*re)
+            return a,b,c,d,e,f
+        else:
+            raise Exception("Cannot invert degenerate matrix")
+
     def pixel2coord(self, x, y):
         """
         Transforms a pixel location on the image to its position in the canvas coordinate system.
@@ -1347,31 +1371,8 @@ class Canvas:
         - *x*: X image pixel coordinate.
         - *y*: Y image pixel coordinate. 
         """
-        # NEED TO CHANGE TO USE INVERSE TRANSFORM COEFFS
-        # partly taken from Sean Gillies "affine.py"
-        a,b,c,d,e,f = self.coordspace_transform
-        det = a*e - b*d
-        idet = 1 / float(det)
-        ra = e * idet
-        rb = -b * idet
-        rd = -d * idet
-        re = a * idet
-        newx = (x*ra + y*rb + (-c*ra - f*rb) )
-        newy = (x*rd + y*re + (-c*rd - f*re) )
-        return newx,newy
-
-    def pixel2coord_dist(self, x, y):
-        # SHOULD BE REMOVED, SINCE WE HAVE INSTEAD measure_dist()...
-        # partly taken from Sean Gillies "affine.py"
-        a,b,c,d,e,f = self.coordspace_transform
-        det = a*e - b*d
-        idet = 1 / float(det)
-        ra = e * idet
-        rb = -b * idet
-        rd = -d * idet
-        re = a * idet
-        newx = (x*ra) # only considers xoffset
-        newy = (y*re) # only considers yoffset
+        a,b,c,d,e,f = self.coordspace_invtransform
+        newx,newy = (x*a + y*b + c, x*d + y*e + f)
         return newx,newy
 
     def coord2pixel(self, x, y):
@@ -1493,21 +1494,24 @@ class Canvas:
             customoptions["fillsize"] = units.parse_dist(customoptions["fillsize"],
                                                          ppi=self.ppi,
                                                          default_unit=self.default_unit,
-                                                         canvassize=[self.width,self.height])
+                                                         canvassize=[self.width,self.height],
+                                                         coordsize=[self.coordspace_width,self.coordspace_height])
         else:
             customoptions["fillsize"] = units.parse_diststring("0.7%w", ppi=self.ppi, canvassize=[self.width,self.height])
         if customoptions.get("fillwidth"):
             customoptions["fillwidth"] = units.parse_dist(customoptions["fillwidth"],
                                                          ppi=self.ppi,
                                                          default_unit=self.default_unit,
-                                                         canvassize=[self.width,self.height])
+                                                         canvassize=[self.width,self.height],
+                                                         coordsize=[self.coordspace_width,self.coordspace_height])
         else:
             customoptions["fillwidth"] = customoptions["fillsize"] * 2
         if customoptions.get("fillheight"):
             customoptions["fillheight"] = units.parse_dist(customoptions["fillheight"],
                                                          ppi=self.ppi,
                                                          default_unit=self.default_unit,
-                                                         canvassize=[self.width,self.height])
+                                                         canvassize=[self.width,self.height],
+                                                         coordsize=[self.coordspace_width,self.coordspace_height])
         else:
             customoptions["fillheight"] = customoptions["fillsize"] * 2
         # outlinewidth
@@ -1515,7 +1519,8 @@ class Canvas:
             customoptions["outlinewidth"] = units.parse_dist(customoptions["outlinewidth"],
                                                          ppi=self.ppi,
                                                          default_unit=self.default_unit,
-                                                         canvassize=[self.width,self.height])
+                                                         canvassize=[self.width,self.height],
+                                                         coordsize=[self.coordspace_width,self.coordspace_height])
         else: customoptions["outlinewidth"] = units.parse_diststring("0.07%w", ppi=self.ppi, canvassize=[self.width,self.height])
         
         # colors
