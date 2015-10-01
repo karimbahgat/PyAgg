@@ -333,7 +333,7 @@ class Canvas:
         self.coordspace_bbox = [x1,y1,x2,y2]
         return self
 
-    def paste(self, image, xy=(0,0)):
+    def paste(self, image, xy=(0,0), anchor="nw"):
         """
         Paste the northwest corner of a PIL image
         onto a given location in the Canvas.
@@ -343,6 +343,8 @@ class Canvas:
         - *image*: PIL image to paste.
         - *xy*: An xy point tuple of the location to paste the northwest corner of the image.
             Can be specified with any unit with a string representation. Otherwise defaults to pixels.
+        - *anchor*: What part of the image to anchor at the xy point. Can be any compass direction
+            n,ne,e,se,s,sw,w,nw, or center.
 
         Returns:
         
@@ -359,9 +361,26 @@ class Canvas:
                              ppi=self.ppi,
                              default_unit="px",
                              canvassize=[self.width,self.height])
+        
+        # Anchor
+        anchor = anchor.lower()
+        if anchor == "center":
+            x = int(x - image.width/2.0)
+            y = int(y - image.height/2.0)
+        else:
+            x = int(x - image.width/2.0)
+            y = int(y - image.height/2.0)
+            if "n" in anchor:
+                y = int(y + image.height/2.0)
+            elif "s" in anchor:
+                y = int(y - image.height/2.0)
+            if "e" in anchor:
+                x = int(x - image.width/2.0)
+            elif "w" in anchor:
+                x = int(x + image.width/2.0)
         xy = (x,y)
-        # Need more options, eg anchor point, and coordinate xy
-        # ...
+
+        ###
         self.drawer.flush()
         if isinstance(image, Canvas): image = image.img
         if image.mode == "RGBA":
