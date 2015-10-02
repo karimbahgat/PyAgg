@@ -52,7 +52,7 @@ def test_piechart():
                            outlinewidth=1,
                            textsize=38,
                            textfont="segoe ui")
-    return graph.draw(2000, 1000, background=(22,22,22))
+    return graph.draw(1500, 1000, background=(22,22,22))
 
 def test_linegraph():
     xs = range(100)

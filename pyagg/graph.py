@@ -9,6 +9,7 @@ import math
 
 
 from .canvas import Canvas
+from . import units
 
 
 
@@ -50,16 +51,17 @@ class Histogram:
             if val < nextval:
                 count += 1
             else:
-                self.bins.append(("%s - %s"%(curval,nextval), count))
+                self.bins.append(((curval,nextval), count))
                 count = 0 + 1 # count towards next bin
                 curval = nextval
                 nextval = curval + binwidth
         
-    def draw(self, width, height, background=(0,0,0)):
+    def draw(self, width, height, background=(0,0,0), labelformat=".2f"):
         # use these aggregated bin values as bars arg, and the bin range text as barlabels
         graph = BarChart()
         graph.bargap = 0
-        labels, values = zip(*self.bins)
+        ranges, values = zip(*self.bins)
+        labels = ["%s - %s"%(format(_min,labelformat),format(_max,labelformat)) for _min,_max in ranges]
         graph.add_category("",
                            barlabels=labels,
                            bars=values,
@@ -77,7 +79,7 @@ class BarChart:
     def add_category(self, name, barlabels, bars, **kwargs):
         self.categories[name] = {"barlabels":barlabels, "bars":bars, "options":kwargs}
 
-    def draw(self, width, height, background=(0,0,0)):
+    def draw(self, width, height, background=(0,0,0), labelformat=""):
         canvas = Canvas(width, height, background)
         ymin = min((min(dict["bars"]) for category,dict in self.categories.items()))
         ymin = min(0, ymin)     # to ensure snapping to 0 if ymin is not negative
@@ -95,7 +97,8 @@ class BarChart:
             for barlabel,barvalue in itertools.izip(dict["barlabels"], dict["bars"]):
                 flat = [curx,0, curx+self.barwidth,0, curx+self.barwidth,barvalue, curx,barvalue]
                 canvas.draw_polygon(flat, **dict["options"])
-                canvas.draw_text(unicode(barlabel), xy=(curx+self.barwidth/2.0,0), textcolor="white", textanchor="n", textsize=12)
+                barlabel = format(barlabel,labelformat)
+                canvas.draw_text(barlabel, xy=(curx+self.barwidth/2.0,0), textcolor="white", textanchor="n", textsize=12)
                 curx += self.barwidth + self.bargap
             baroffset += self.barwidth
         # return the drawed canvas
@@ -110,14 +113,19 @@ class PieChart:
         # only one possible category
         self.categories[name] = {"value":value, "options":kwargs}
 
-    def draw(self, width, height, background=(0,0,0)):
+    def draw(self, width, height, background=(0,0,0), orderby="value"):
         canvas = Canvas(width, height, background)
-        canvas.custom_space(-50, 50, 50, -50)
+        canvas.custom_space(-50, 50, 50, -50, lock_ratio=True)
         total = sum(cat["value"] for cat in self.categories.values())
 
+        
+        if orderby == "value": categories = list(sorted(self.categories.items(), key=lambda x: x[1]["value"]))
+        elif orderby == "name": categories = list(sorted(self.categories.items(), key=lambda x: x[1]["name"]))
+        else: categories = list(self.categories.items())
+
         # first pies
-        curangle = 0
-        for category in self.categories.values():
+        curangle = 90
+        for name,category in categories:
             value = category["value"]
             ratio = value / float(total)
             degrees = 360 * ratio
@@ -125,16 +133,25 @@ class PieChart:
                             **category["options"])
             curangle += degrees
 
-        # then text label
-        curangle = 0
-        for name, category in self.categories.items():
+        # text label offsets
+        x,y = canvas.coord2pixel(0,0)
+        offset = units.parse_dist(category["options"]["fillsize"],
+                                 ppi=canvas.ppi,
+                                 default_unit=canvas.default_unit,
+                                 canvassize=[canvas.width,canvas.height],
+                                 coordsize=[canvas.coordspace_width,canvas.coordspace_height])
+        offset *= 0.75
+
+        # then text labels
+        canvas.pixel_space()
+        curangle = 90
+        for name, category in categories:
             value = category["value"]
             ratio = value / float(total)
             degrees = 360 * ratio
             midangle = curangle + (degrees / 2.0)
             midrad = math.radians(midangle)
-            size = 20 #category["options"]["fillsize"] / 2.0
-            tx,ty = 0 + size * math.cos(midrad), 0 - size * math.sin(midrad)
+            tx,ty = x + offset * math.cos(midrad), y - offset * math.sin(midrad)
             canvas.draw_text(name, (tx,ty), **category["options"])
             curangle += degrees
         return canvas
