@@ -229,6 +229,7 @@ class Canvas:
                                  canvassize=[self.width,self.height],
                                  coordsize=[self.coordspace_width,self.coordspace_height])
         self.img = self.img.resize((width, height), PIL.Image.ANTIALIAS)
+        # apply
         self.update_drawer_img()
         # Then update coordspace to match the new image dimensions
         self.custom_space(*self.coordspace_bbox, lock_ratio=lock_ratio)
@@ -250,10 +251,26 @@ class Canvas:
             the new instance to allow for linked method calls. 
         """
         self.drawer.flush()
-        self.img = self.img.rotate(degrees, PIL.Image.BICUBIC)
+        self.img = self.img.rotate(degrees, PIL.Image.BICUBIC, expand=0)
         self.update_drawer_img()
         # Somehow update the drawtransform/coordspace to follow the image change operation
-        # ...
+        # Rotate anpit the midpoint
+        # Useful: http://www.euclideanspace.com/maths/geometry/affine/aroundPoint/
+        # To do: Allow expand option to include all the rotated image and coordspace...
+        # To fix: Some shearing effects of drawing objects vs the rotated background color image
+        midx = self.coordspace_bbox[0] + self.coordspace_width/2.0
+        midy = self.coordspace_bbox[1] + self.coordspace_height/2.0
+        orig = affine.Affine(*self.coordspace_transform)
+        rotated = orig * (affine.Affine.translate(midx,midy) * affine.Affine.rotate(degrees) * affine.Affine.translate(-midx,-midy))
+        # remember the new coordinate extents and affine matrix
+        self.coordspace_transform = rotated.coefficients
+        # offset bbox
+        x1,y1,x2,y2 = 0,0,self.width,self.height
+        x1,y1 = self.pixel2coord(x1, y1)
+        x2,y2 = self.pixel2coord(x2, y2)
+        self.coordspace_bbox = [x1,y1,x2,y2]
+        # apply
+        self.update_drawer_img()
         return self
 
 ##    def skew(self):
@@ -285,7 +302,21 @@ class Canvas:
         self.img = img
         self.update_drawer_img()
         # Somehow update the drawtransform/coordspace to follow the image change operation
-        # ...
+        orig = affine.Affine(*self.coordspace_transform)
+        if xflip and yflip: flipfactor = affine.Affine.translate(self.coordspace_width,self.coordspace_height) * affine.Affine.flip(xflip, yflip)
+        elif xflip: flipfactor = affine.Affine.translate(self.coordspace_width,0) * affine.Affine.flip(xflip, yflip)
+        elif yflip: flipfactor = affine.Affine.translate(0,self.coordspace_height) * affine.Affine.flip(xflip, yflip)
+        flipped = orig * flipfactor
+        print flipped
+        # remember the new coordinate extents and affine matrix
+        self.coordspace_transform = flipped.coefficients
+        # offset bbox
+        x1,y1,x2,y2 = 0,0,self.width,self.height
+        x1,y1 = self.pixel2coord(x1, y1)
+        x2,y2 = self.pixel2coord(x2, y2)
+        self.coordspace_bbox = [x1,y1,x2,y2]
+        # apply
+        self.update_drawer_img()
         return self
 
     def move(self, xmove, ymove):
@@ -323,7 +354,20 @@ class Canvas:
         self.img = blank
         # similarly move the drawing transform
         # by converting pixels to coord distances
-        xmove,ymove = self.pixel2coord(xmove, ymove)   # REDO LATER
+        def pixel2coord_dist(x, y):
+            # SHOULD BE REMOVED, NEED INSTEAD A PIXEL TO COORDINATE UNIT CONVERTER (units.py is only coords 2 pixel)?
+            # partly taken from Sean Gillies "affine.py"
+            a,b,c,d,e,f = self.coordspace_transform
+            det = a*e - b*d
+            idet = 1 / float(det)
+            ra = e * idet
+            rb = -b * idet
+            rd = -d * idet
+            re = a * idet
+            newx = (x*ra) # only considers xoffset
+            newy = (y*re) # only considers yoffset
+            return newx,newy
+        xmove,ymove = pixel2coord_dist(xmove, ymove)   # REDO LATER
         orig = affine.Affine(*self.coordspace_transform)
         moved = orig * affine.Affine.translate(xmove,ymove)
         self.drawer = aggdraw.Draw(self.img)
@@ -335,6 +379,8 @@ class Canvas:
         x1,y1 = self.pixel2coord(x1, y1)
         x2,y2 = self.pixel2coord(x2, y2)
         self.coordspace_bbox = [x1,y1,x2,y2]
+        # apply
+        self.update_drawer_img()
         return self
 
     def paste(self, image, xy=(0,0), anchor="nw"):
@@ -355,6 +401,9 @@ class Canvas:
         - In addition to changing the original instance, this method returns
             the new instance to allow for linked method calls.
         """
+        self.drawer.flush()
+        if isinstance(image, Canvas): image = image.img
+        
         # Parse xy location from any type of unit to pixels
         x,y = xy
         x = units.parse_dist(x,
@@ -369,29 +418,29 @@ class Canvas:
                              coordsize=[self.coordspace_width,self.coordspace_height])
         
         # Anchor
+        width,height = image.size
         anchor = anchor.lower()
         if anchor == "center":
-            x = int(x - image.width/2.0)
-            y = int(y - image.height/2.0)
+            x = int(x - width/2.0)
+            y = int(y - height/2.0)
         else:
-            x = int(x - image.width/2.0)
-            y = int(y - image.height/2.0)
+            x = int(x - width/2.0)
+            y = int(y - height/2.0)
             if "n" in anchor:
-                y = int(y + image.height/2.0)
+                y = int(y + height/2.0)
             elif "s" in anchor:
-                y = int(y - image.height/2.0)
+                y = int(y - height/2.0)
             if "e" in anchor:
-                x = int(x - image.width/2.0)
+                x = int(x - width/2.0)
             elif "w" in anchor:
-                x = int(x + image.width/2.0)
+                x = int(x + width/2.0)
         xy = (x,y)
 
         ###
-        self.drawer.flush()
-        if isinstance(image, Canvas): image = image.img
         if image.mode == "RGBA":
             self.img.paste(image, xy, image) # paste using self as transparency mask
         else: self.img.paste(image, xy)
+        # apply
         self.update_drawer_img()
         return self
 

@@ -36,18 +36,6 @@ def cm_to_px(diststring, ppi):
     pixels = inches * ppi
     return pixels
 
-##def x_to_px(diststring, x2px_func):
-##    diststring = diststring.replace("x", "")
-##    xdist = eval(diststring)
-##    pixels = x2px_func(xdist)
-##    return pixels
-##
-##def y_to_px(diststring, y2px_func):
-##    diststring = diststring.replace("y", "")
-##    ydist = eval(diststring)
-##    pixels = y2px_func(ydist)
-##    return pixels
-
 def percwidth_to_px(diststring, width):
     diststring = diststring.replace("%w", "")
     perc = float(diststring)
@@ -87,6 +75,18 @@ def y_to_px(diststring, height, coordheight):
     rely = y / float(coordheight)
     pixels = height * rely
     return pixels
+
+##def x_to_px(diststring, x2px_func):
+##    diststring = diststring.replace("x", "")
+##    xdist = eval(diststring)
+##    pixels = x2px_func(xdist)
+##    return pixels
+##
+##def y_to_px(diststring, y2px_func):
+##    diststring = diststring.replace("y", "")
+##    ydist = eval(diststring)
+##    pixels = y2px_func(ydist)
+##    return pixels
 
 def parse_diststring(diststring, ppi=None, canvassize=None, coordsize=None):
     """

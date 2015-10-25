@@ -27,6 +27,8 @@ import math
 def test_text():
     canvas = pyagg.Canvas("210mm","297mm", background=(222,222,222), ppi=97)
     canvas.percent_space()
+    canvas.flip(True, True)
+    #canvas.rotate(30)
     
     canvas.draw_line([10,10, 50,90, 90,10],
                      smooth=True,
