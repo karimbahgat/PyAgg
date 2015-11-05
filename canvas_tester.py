@@ -50,12 +50,14 @@ def test_text():
                          anchor=d)
     canvas.default_unit = "cm"
     canvas.draw_circle((50,50),fillsize="1", fillcolor=(0,222,0))
-    canvas.draw_box((50,50),fillsize="1", fillcolor=(0,0,0, 111))
+    #canvas.draw_box((50,50),fillsize="1", fillcolor=(0,0,0, 111))
     canvas.draw_triangle((50,50),fillsize="1", fillcolor=(0,0,0, 111))
     canvas.default_unit = "in"
     canvas.draw_circle((50,50),fillsize="1", fillcolor=(0,222,0,111))
-    canvas.draw_box((50,50),fillsize="1", fillcolor=(0,0,0, 111))
+    #canvas.draw_box((50,50),fillsize="1", fillcolor=(0,0,0, 111))
     canvas.draw_triangle((50,50),fillsize="1", fillcolor=(0,0,0, 111))
+    miniimg = pyagg.load("C:/Users/kimo/Desktop/ble.png")
+    canvas.paste(miniimg, bbox=[10,10,40,40])
     canvas.save("C:/Users/kimo/Desktop/ble.png")#view()
 
 

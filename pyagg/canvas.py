@@ -254,7 +254,7 @@ class Canvas:
         self.img = self.img.rotate(degrees, PIL.Image.BICUBIC, expand=0)
         self.update_drawer_img()
         # Somehow update the drawtransform/coordspace to follow the image change operation
-        # Rotate anpit the midpoint
+        # Rotate around the midpoint
         # Useful: http://www.euclideanspace.com/maths/geometry/affine/aroundPoint/
         # To do: Allow expand option to include all the rotated image and coordspace...
         # To fix: Some shearing effects of drawing objects vs the rotated background color image
@@ -383,18 +383,21 @@ class Canvas:
         self.update_drawer_img()
         return self
 
-    def paste(self, image, xy=(0,0), anchor="nw"):
+    def paste(self, image, xy=(0,0), bbox=None, anchor="nw", outlinewidth="1px", outlinecolor="black"):
         """
-        Paste the northwest corner of a PIL image
+        Paste a PIL image or PyAgg canvas
         onto a given location in the Canvas.
 
         Parameters:
 
-        - *image*: PIL image to paste.
+        - *image*: PIL image or PyAgg canvas to paste.
         - *xy*: An xy point tuple of the location to paste the northwest corner of the image.
             Can be specified with any unit with a string representation. Otherwise defaults to pixels.
+        - *bbox*: ...
         - *anchor*: What part of the image to anchor at the xy point. Can be any compass direction
             n,ne,e,se,s,sw,w,nw, or center.
+        - *outlinewidth*: ...
+        - *outlinecolor*: ...
 
         Returns:
         
@@ -404,44 +407,62 @@ class Canvas:
         self.drawer.flush()
         if isinstance(image, Canvas): image = image.img
         
-        # Parse xy location from any type of unit to pixels
-        x,y = xy
-        x = units.parse_dist(x,
-                             ppi=self.ppi,
-                             default_unit="px",
-                             canvassize=[self.width,self.height],
-                             coordsize=[self.coordspace_width,self.coordspace_height])
-        y = units.parse_dist(y,
-                             ppi=self.ppi,
-                             default_unit="px",
-                             canvassize=[self.width,self.height],
-                             coordsize=[self.coordspace_width,self.coordspace_height])
-        
-        # Anchor
-        width,height = image.size
-        anchor = anchor.lower()
-        if anchor == "center":
-            x = int(x - width/2.0)
-            y = int(y - height/2.0)
-        else:
-            x = int(x - width/2.0)
-            y = int(y - height/2.0)
-            if "n" in anchor:
-                y = int(y + height/2.0)
-            elif "s" in anchor:
-                y = int(y - height/2.0)
-            if "e" in anchor:
+        if bbox:
+            x1,y1,x2,y2 = bbox
+            x1,y1 = self.coord2pixel(x1,y1)
+            x2,y2 = self.coord2pixel(x2,y2)
+            xs,ys = (x1,x2),(y1,y2)
+            bbwidth = max(xs) - min(xs)
+            bbheight = max(ys) - min(ys)
+            image = from_image(image).resize(bbwidth,bbheight).img
+            xy = min(xs),min(ys)
+            
+        elif xy:
+            # Parse xy location from any type of unit to pixels
+            x,y = xy
+            x = units.parse_dist(x,
+                                 ppi=self.ppi,
+                                 default_unit="px",
+                                 canvassize=[self.width,self.height],
+                                 coordsize=[self.coordspace_width,self.coordspace_height])
+            y = units.parse_dist(y,
+                                 ppi=self.ppi,
+                                 default_unit="px",
+                                 canvassize=[self.width,self.height],
+                                 coordsize=[self.coordspace_width,self.coordspace_height])
+            
+            # Anchor
+            width,height = image.size
+            anchor = anchor.lower()
+            if anchor == "center":
                 x = int(x - width/2.0)
-            elif "w" in anchor:
-                x = int(x + width/2.0)
-        xy = (x,y)
+                y = int(y - height/2.0)
+            else:
+                x = int(x - width/2.0)
+                y = int(y - height/2.0)
+                if "n" in anchor:
+                    y = int(y + height/2.0)
+                elif "s" in anchor:
+                    y = int(y - height/2.0)
+                if "e" in anchor:
+                    x = int(x - width/2.0)
+                elif "w" in anchor:
+                    x = int(x + width/2.0)
+            xy = (x,y)
+            bbox = [x,y,x+width,y+height]
 
         ###
         if image.mode == "RGBA":
             self.img.paste(image, xy, image) # paste using self as transparency mask
         else: self.img.paste(image, xy)
+            
         # apply
         self.update_drawer_img()
+      
+        # outline
+        if outlinewidth and outlinecolor:
+            self.draw_box(bbox=bbox, fillcolor=None, outlinewidth=outlinewidth, outlinecolor=outlinecolor)
+        
         return self
 
 ##    def crop(self, xmin, ymin, xmax, ymax):
