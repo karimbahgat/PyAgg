@@ -35,7 +35,7 @@ def resize_dimensions(bbox, newwidth, newheight):
     yheight = max(y2y) - min(y2y)
     xratio = newwidth / float(xwidth)
     yratio = newheight / float(yheight)
-    return bbox_resize_ratio(bbox, xratio, yratio)
+    return resize_ratio(bbox, xratio, yratio)
 
 def center(bbox, center):
     # remember old

@@ -27,7 +27,7 @@ import math
 def test_text():
     canvas = pyagg.Canvas("210mm","297mm", background=(222,222,222), ppi=97)
     canvas.percent_space()
-    canvas.flip(True, True)
+    #canvas.flip(True, True)
     #canvas.rotate(30)
     
     canvas.draw_line([10,10, 50,90, 90,10],
@@ -56,8 +56,16 @@ def test_text():
     canvas.draw_circle((50,50),fillsize="1", fillcolor=(0,222,0,111))
     #canvas.draw_box((50,50),fillsize="1", fillcolor=(0,0,0, 111))
     canvas.draw_triangle((50,50),fillsize="1", fillcolor=(0,0,0, 111))
+
     miniimg = pyagg.load("C:/Users/kimo/Desktop/ble.png")
     canvas.paste(miniimg, bbox=[10,10,40,40])
+    
+    #canvas.zoom_bbox(40,30,100,100, lock_ratio=True)
+    #canvas.zoom_bbox(-10,-10,130,130)
+    #canvas.zoom_factor(3)
+    #print canvas.coordspace_units
+    #canvas.zoom_units(1)
+    #print canvas.coordspace_units
     canvas.save("C:/Users/kimo/Desktop/ble.png")#view()
 
 

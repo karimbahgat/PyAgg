@@ -415,7 +415,7 @@ class Canvas:
             bbwidth = max(xs) - min(xs)
             bbheight = max(ys) - min(ys)
             image = from_image(image).resize(bbwidth,bbheight).img
-            xy = min(xs),min(ys)
+            xy = min(xs),min(ys) # NOTE: not correct nw corner...
             
         elif xy:
             # Parse xy location from any type of unit to pixels
@@ -465,46 +465,28 @@ class Canvas:
         
         return self
 
-##    def crop(self, xmin, ymin, xmax, ymax):
-##        """
-##        Crop the canvas image to a bounding box defined in pixel coordinates,
-##        and the coordinate system will follow.
-##
-##        Parameters:
-##        
-##        - xmin: The lower bound of the x-axis after the crop.
-##        - ymin: The lower bound of the y-axis after the crop.
-##        - xmax: The higher bound of the x-axis after the crop.
-##        - ymax: The higher bound of the y-axis after the crop.
-##
-##        Returns:
-##        
-##        - In addition to changing the original instance, this method returns
-##            the new instance to allow for linked method calls.
-##        """
-##        ### NEW: JUST DO SAME ROUTINE AS "move" AND "resize"
-##        # HALFWAY THROUGH USING COORDINATES
-##        # MAYBE GO BACK TO PIXELS ONLY
-##        # NOTE: Also need to update drawing transform to match the new image dimensions
-##        self.drawer.flush()
-##
-##        # convert bbox to pixel positions
-##        (xmin, ymin), (xmax, ymax) = [self.coord2pixel(xmin, ymin),
-##                                      self.coord2pixel(xmax, ymax)]
-##
-##        # ensure pixels are listed in correct left/right top/bottom order
-##        xleft, ytop, xright, ybottom = xmin, ymin, xmax, ymax
-##        if xleft > xright: xleft,xright = xright,xleft
-##        if ytop > ybottom: ytop,ybottom = ybottom,ytop
-##
-##        # constrain aspect ratio, maybe by applying a new zoom_transform and reading coordbbox
-##        # ...
-##
-##        # do the cropping
-##        pixel_bbox = map(int, [xleft, ytop, xright, ybottom])
-##        self.img = self.img.crop(pixel_bbox)
-##        self.update_drawer_img()
-##        return self
+    def crop(self, xmin, ymin, xmax, ymax, lock_ratio=False):
+        """
+        Crop the canvas image to a bounding box defined in pixel coordinates,
+        and the coordinate system will follow.
+        Essentially just an alias for zoom_bbox(), except lock_ratio
+        is set to False by default.
+
+        Parameters:
+
+        - *xmin*: The lower bound of the x-axis after the zoom.
+        - *ymin*: The lower bound of the y-axis after the zoom.
+        - *xmax*: The higher bound of the x-axis after the zoom.
+        - *ymax*: The higher bound of the y-axis after the zoom.
+        - *lock_ratio*: Preserve the aspect ratio of the original image/coordsys. 
+
+        Returns:
+        
+        - In addition to changing the original instance, this method returns
+            the new instance to allow for linked method calls.
+        """
+        self.zoom_bbox(xmin, ymin, xmax, ymax, lock_ratio)
+        return self        
 
     def update_drawer_img(self):
         """
@@ -595,6 +577,8 @@ class Canvas:
         - *units*: how many coordinate units per screen cm at the new zoom level.
         - *center* (optional): xy coordinate tuple to center/offset the zoom. Defauls to middle of the bbox. 
         """
+        self.drawer.flush()
+        
         # calculate pixels per unit etc
         unitscm = units
         cmsunit = 1 / float(unitscm)
@@ -609,7 +593,9 @@ class Canvas:
         # center it
         if center:
             newbbox = bboxhelper.center(newbbox, center)
-        self.custom_space(*newbbox, lock_ratio=True)
+        self.zoom_bbox(*newbbox, lock_ratio=False)
+
+        self.update_drawer_img()
 
     def zoom_factor(self, factor, center=None):
         """
@@ -621,6 +607,8 @@ class Canvas:
         - *factor*: Positive values > 1 for in-zoom, negative < -1 for out-zoom.
         - *center* (optional): xy coordinate tuple to center/offset the zoom. Defauls to middle of the bbox. 
         """
+        self.drawer.flush()
+        
         if -1 < factor < 1:
             raise Exception("Zoom error: Zoom factor must be higher than +1 or lower than -1.")
         # positive zoom means bbox must be shrunk
@@ -634,7 +622,9 @@ class Canvas:
         # center it
         if center:
             newbbox = bboxhelper.center(newbbox, center)
-        self.custom_space(*newbbox, lock_ratio=False)
+        self.zoom_bbox(*newbbox, lock_ratio=False)
+        
+        self.update_drawer_img()
 
     def zoom_in(self, factor, center=None):
         """
@@ -658,11 +648,12 @@ class Canvas:
         """
         self.zoom_factor(-1 * factor, center)        
 
-    def zoom_bbox(self, xmin, ymin, xmax, ymax):
+    def zoom_bbox(self, xmin, ymin, xmax, ymax, lock_ratio=True):
         """
         Essentially the same as using coord_space(), but takes a bbox
         in min/max format instead, converting to left/right/etc behind
         the scenes so that axis directions are preserved.
+        Moreover, the existing image is zoomed as well. 
 
         Parameters:
 
@@ -670,16 +661,53 @@ class Canvas:
         - *ymin*: The lower bound of the y-axis after the zoom.
         - *xmax*: The higher bound of the x-axis after the zoom.
         - *ymax*: The higher bound of the y-axis after the zoom.
+        - *lock_ratio*: Preserve the aspect ratio of the original image/coordsys. 
         """
+        self.drawer.flush()
+        
         xleft, ybottom, xright, ytop = xmin, ymin, xmax, ymax
         oldxleft, oldytop, oldxright, oldybottom = self.coordspace_bbox
+        
         # ensure old and zoom axes go in same directions
         if not (xleft < xright) == (oldxleft < oldxright):
             xleft,xright = xright,xleft
         if not (ytop < ybottom) == (oldytop < oldybottom):
             ytop,ybottom = ybottom,ytop
-        # zoom it
-        self.custom_space(xleft, ytop, xright, ybottom, lock_ratio=True)
+            
+        # constrain the coordinate view ratio to the screen ratio, shrinking the coordinate space to ensure that it is fully contained inside the image
+        # NOTE: not fully working yet
+        if lock_ratio:
+            xs = xleft,xright
+            ys = ytop,ybottom
+            xwidth = max(xs) - min(xs)
+            yheight = max(ys) - min(ys)
+            # make coords same proportions as canvas image
+            screenxratio = self.width / float(self.height)
+            yheight = yheight
+            xwidth = yheight * screenxratio
+            # ensure that altered coords do not shrink the original coords
+##            diffratio = 1.0
+##            if xwidth < oldxwidth: diffratio = oldxwidth / float(xwidth)
+##            elif yheight < oldyheight: diffratio = oldyheight / float(yheight)
+##            xwidth *= diffratio
+##            yheight *= diffratio
+            # move the center of focus to middle of coordinate space if view ratio has been constrained
+            # ...
+            xleft,ytop,xright,ybottom = bboxhelper.resize_dimensions([xleft,ytop,xright,ybottom],
+                                                                     xwidth, yheight)
+            
+        # zoom the image
+        pxleft,pytop = self.coord2pixel(xleft,ytop)
+        pxright,pybottom = self.coord2pixel(xright,ybottom)
+        self.img = self.img.transform((self.width,self.height),
+                                      PIL.Image.EXTENT,
+                                      (pxleft,pytop,pxright,pybottom),
+                                      PIL.Image.BILINEAR)
+        
+        # zoom the coord space
+        self.custom_space(xleft, ytop, xright, ybottom, lock_ratio=lock_ratio)
+        
+        self.update_drawer_img()
 
     def pixel_space(self):
         """
@@ -743,7 +771,7 @@ class Canvas:
         # constrain the coordinate view ratio to the screen ratio, shrinking the coordinate space to ensure that it is fully contained inside the image
         centered = affine.Affine.identity()
         if lock_ratio:
-            # make coords same proportions as screen
+            # make coords same proportions as canvas image
             screenxratio = self.width / float(self.height)
             yheight = yheight
             xwidth = yheight * screenxratio
