@@ -682,119 +682,61 @@ class Canvas:
         if lock_ratio:
             xs = xleft,xright
             ys = ytop,ybottom
-            xwidth = max(xs) - min(xs)
-            yheight = max(ys) - min(ys)
-            widthratio = self.coordspace_width / float(xwidth)
-            heightratio = self.coordspace_height / float(yheight)
-            # resize one side to maintain aspect ratio
-##            print widthratio,heightratio
-##            yheight = xwidth * heightratio
-##            xwidth = yheight * widthratio
-            
-##            if widthratio > 1:
-##                yheight = xwidth * heightratio
-##            else:
-##                xwidth = yheight * widthratio
-##            if heightratio > 1:
-##                yheight = xwidth * heightratio
-##            else:
-##                xwidth = yheight * widthratio
-           
-##            if self.coordspace_width < self.coordspace_height:
-##                xwidth = 
-##            yheight = xwidth * heightratio
-##            xwidth = yheight * widthratio
-##            yheight = xwidth * heightratio
-##            widthratio = self.coordspace_width / float(xwidth)
-##            heightratio = self.coordspace_height / float(yheight)
-            
-            # grow to the required size
-            # see: http://stackoverflow.com/questions/7863653/algorithm-to-resize-image-and-maintain-aspect-ratio-to-fit-iphone
-##            widthratio = self.coordspace_width / float(xwidth)
-##            heightratio = self.coordspace_height / float(yheight)
-##            if fit:
-##                ratio = widthratio if widthratio < heightratio else heightratio
-##            else:
-##                ratio = widthratio if widthratio < heightratio else heightratio
-##            newwidth = xwidth*ratio
-##            newheight = yheight*ratio
-            
-            # initial go
-##            fromaspectratio = xwidth/float(yheight)
-##            #yheight = xwidth * self.coordspace_height/float(self.coordspace_width)
-##            #xwidth = yheight * self.coordspace_width/float(self.coordspace_height)
-##            toaspectratio = self.coordspace_width / float(self.coordspace_height)
-##            print fit, toaspectratio,fromaspectratio
-##            if not fit: # ie fill
-##                if toaspectratio > fromaspectratio:
-##                    scalingfactor = self.coordspace_width / float(xwidth)
-##                else:
-##                    scalingfactor = self.coordspace_height / float(yheight)
-##            else:
-##                if toaspectratio > fromaspectratio:
-##                    scalingfactor = self.coordspace_height / float(yheight)
-##                else:
-##                    scalingfactor = self.coordspace_width / float(xwidth)
-##            print scalingfactor
-##            newwidth = xwidth * scalingfactor
-##            newheight = yheight * scalingfactor
-            
-##            widthratio = self.coordspace_width / float(self.coordspace_height)
-##            heightratio = self.coordspace_height / float(self.coordspace_width)
-##            print xwidth,yheight
+            xwidth = newwidth = max(xs) - min(xs)
+            yheight = newheight = max(ys) - min(ys)
 
-##            if xwidth/float(yheight) > widthratio:
-##                newwidth = yheight * widthratio
-##                newheight = xwidth * heightratio
-##                if fit:
-##                    newwidth = newheight * widthratio
-##            elif xwidth/float(yheight) < widthratio:
-##                newheight = xwidth * heightratio
-##                newwidth = yheight * widthratio
-##                if fit:
-##                    newheight = newwidth * heightratio
+            # maintain aspect ratio
+            # brute force but works...
+            targetaspect = self.coordspace_width/float(self.coordspace_height)
 
-##            if fit:
-##                if xwidth/float(yheight) > widthratio:
-##                    newwidth = yheight * widthratio
-##                    newheight = xwidth * heightratio
-##                elif xwidth/float(yheight) < widthratio:
-##                    newheight = xwidth * heightratio
-##                    newwidth = yheight * widthratio
-##            else:
-##                if xwidth/float(yheight) < widthratio:
-##                    newwidth = yheight * widthratio
-##                    newheight = xwidth * heightratio
-##                elif xwidth/float(yheight) > widthratio:
-##                    newheight = xwidth * heightratio
-##                    newwidth = yheight * widthratio
-            
-            newheight = yheight
-            newwidth = yheight * widthratio
-####            newwidth = yheight * widthratio
-####            newheight = xwidth * heightratio
-####            newwidth = newheight * widthratio
-##            print newwidth,newheight
-##            
-####            # adjust up or down depending on fillrule            
-####            if (fit and newwidth < xwidth) or (not fit and newwidth > xwidth):
-####                newwidth = newwidth
-####                newheight = newwidth * heightratio
-####            else:
-####                newheight = newheight
-####                newwidth = newheight * widthratio
-####            print newwidth,newheight
-####
-            diffratio = 1.0
             if fit:
-                if newwidth < xwidth: diffratio = xwidth / float(newwidth)
-                elif newheight < yheight: diffratio = yheight / float(newheight)
-            elif not fit:
-                if newwidth > xwidth: diffratio = xwidth / float(newwidth)
-                elif newheight > yheight: diffratio = yheight / float(newheight)
-            newwidth *= diffratio
-            newheight *= diffratio
-            
+                # WORKS
+                if self.coordspace_width > self.coordspace_height:
+                    # wide coordsys
+                    if newwidth < newheight:
+                        # tall bbox
+                        newwidth = newheight * targetaspect
+                    if newwidth > newheight:
+                        # wide bbox
+                        newheight = newwidth / float(targetaspect)
+                else:
+                    # tall coordsys
+                    if newwidth < newheight:
+                        # tall bbox
+                        newwidth = newheight * targetaspect
+                    if newwidth > newheight:
+                        # wide bbox
+                        newheight = newwidth / float(targetaspect)
+            else:
+                # NOT CHECKED YET...
+                if self.coordspace_width < self.coordspace_height:
+                    if newwidth > newheight:
+                        newheight = newheight
+                        newwidth = newheight * targetaspect
+                    else:
+                        newwidth = newwidth
+                        newheight = newwidth / float(targetaspect)
+                else: 
+                    if newwidth < newheight:
+                        newheight = newheight
+                        newwidth = newheight * targetaspect
+                    else:
+                        newwidth = newwidth
+                        newheight = newwidth / float(targetaspect)
+                        
+            # old but more mathematically correct: grow to the required size
+            # see: http://stackoverflow.com/questions/7863653/algorithm-to-resize-image-and-maintain-aspect-ratio-to-fit-iphone
+##            widthratio = self.coordspace_width / float(newwidth)
+##            heightratio = self.coordspace_height / float(newheight)
+##            if fit:
+##                ratio = widthratio if widthratio < heightratio else heightratio
+##            else:
+##                ratio = widthratio if widthratio > heightratio else heightratio
+##            newwidth = newwidth*ratio
+##            newheight = newheight*ratio
+##            
+##            print newwidth/float(newheight),newwidth,newheight
+
             bbox = [xleft,ytop,xright,ybottom]
             xleft,ytop,xright,ybottom = bboxhelper.resize_dimensions(bbox, newwidth, newheight)
             
