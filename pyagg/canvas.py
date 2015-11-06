@@ -10,6 +10,7 @@ from __future__ import division
 
 # Import dependencies
 import PIL, PIL.Image, PIL.ImageTk, PIL.ImageDraw, PIL.ImageFont
+import PIL.ImageOps, PIL.ImageChops
 
 # Import builtins
 import sys, os
@@ -195,7 +196,7 @@ class Canvas:
 
     # Image operations
 
-    def resize(self, width, height, lock_ratio=False):
+    def resize(self, width, height, lock_ratio=False, fit=True):
         """
         Resize canvas image to new width and height in pixels or other units,
         and the coordinate system will follow, so that each corner
@@ -228,11 +229,35 @@ class Canvas:
                                  default_unit="px",
                                  canvassize=[self.width,self.height],
                                  coordsize=[self.coordspace_width,self.coordspace_height])
-        self.img = self.img.resize((width, height), PIL.Image.ANTIALIAS)
+        if lock_ratio:
+            # see: http://stackoverflow.com/questions/9103257/resize-image-maintaining-aspect-ratio-and-making-portrait-and-landscape-images-e
+            img = self.img.copy()
+            img.thumbnail((width,height), PIL.Image.ANTIALIAS)
+            oldwidth,oldheight = img.size
+
+            # FINAL TODO: newbbox coords not correct yet...
+            if fit:
+                thumb = img.crop( (0, 0, width, height) )
+
+                offset_x = max([ (width - oldwidth) / 2.0, 0 ])
+                offset_y = max([ (height - oldheight) / 2.0, 0 ])
+
+                self.img = PIL.ImageChops.offset(thumb, int(offset_x), int(offset_y))
+                newbbox = self.coordspace_bbox
+                newbbox = bboxhelper.conform_aspect(newbbox, width, height, fit=True)
+
+            else:
+                self.img = PIL.ImageOps.fit(img, (width,height), PIL.Image.ANTIALIAS, (0.5, 0.5))
+                newbbox = self.coordspace_bbox
+                newbbox = bboxhelper.conform_aspect(newbbox, width, height, fit=False)
+        
+        else:
+            self.img = self.img.resize((width, height), PIL.Image.ANTIALIAS)
+            newbbox = self.coordspace_bbox
         # apply
         self.update_drawer_img()
         # Then update coordspace to match the new image dimensions
-        self.custom_space(*self.coordspace_bbox, lock_ratio=lock_ratio)
+        self.custom_space(*newbbox, lock_ratio=False)
         return self
 
     def rotate(self, degrees):
@@ -383,7 +408,7 @@ class Canvas:
         self.update_drawer_img()
         return self
 
-    def paste(self, image, xy=(0,0), bbox=None, anchor="nw", outlinewidth="1px", outlinecolor="black"):
+    def paste(self, image, xy=(0,0), bbox=None, lock_ratio=True, fit=True, anchor="nw", outlinewidth="1px", outlinecolor="black"):
         """
         Paste a PIL image or PyAgg canvas
         onto a given location in the Canvas.
@@ -394,6 +419,8 @@ class Canvas:
         - *xy*: An xy point tuple of the location to paste the northwest corner of the image.
             Can be specified with any unit with a string representation. Otherwise defaults to pixels.
         - *bbox*: ...
+        - *lock_ratio*: ...
+        - *fit*: ...
         - *anchor*: What part of the image to anchor at the xy point. Can be any compass direction
             n,ne,e,se,s,sw,w,nw, or center.
         - *outlinewidth*: ...
@@ -414,11 +441,16 @@ class Canvas:
             xs,ys = (x1,x2),(y1,y2)
             bbwidth = max(xs) - min(xs)
             bbheight = max(ys) - min(ys)
-            image = from_image(image).resize(bbwidth,bbheight).img
-            xy = min(xs),min(ys) # NOTE: not correct nw corner...
+            image = from_image(image).resize(bbwidth,bbheight,lock_ratio=lock_ratio,fit=fit).img
 
-            # MAYBE ADD LOCK_RATIO AND FIT/FILL OPTION
-            # ...
+            # ensure old and zoom axes go in same directions
+            xleft, ybottom, xright, ytop = x1,y1,x2,y2
+            oldxleft, oldytop, oldxright, oldybottom = self.coordspace_bbox
+            if not (xleft < xright) == (oldxleft < oldxright):
+                xleft,xright = xright,xleft
+            if not (ytop < ybottom) == (oldytop < oldybottom):
+                ytop,ybottom = ybottom,ytop            
+            xy = xleft,ytop
             
         elif xy:
             # Parse xy location from any type of unit to pixels
@@ -468,7 +500,7 @@ class Canvas:
         
         return self
 
-    def crop(self, xmin, ymin, xmax, ymax, lock_ratio=False):
+    def crop(self, xmin, ymin, xmax, ymax):
         """
         Crop the canvas image to a bounding box defined in pixel coordinates,
         and the coordinate system will follow.
@@ -481,14 +513,30 @@ class Canvas:
         - *ymin*: The lower bound of the y-axis after the zoom.
         - *xmax*: The higher bound of the x-axis after the zoom.
         - *ymax*: The higher bound of the y-axis after the zoom.
-        - *lock_ratio*: Preserve the aspect ratio of the original image/coordsys. 
 
         Returns:
         
         - In addition to changing the original instance, this method returns
             the new instance to allow for linked method calls.
         """
-        self.zoom_bbox(xmin, ymin, xmax, ymax, lock_ratio)
+        self.drawer.flush()
+
+        # ensure old and zoom axes go in same directions
+        xleft, ybottom, xright, ytop = xmin,ymin,xmax,ymax
+        oldxleft, oldytop, oldxright, oldybottom = self.coordspace_bbox
+        if not (xleft < xright) == (oldxleft < oldxright):
+            xleft,xright = xright,xleft
+        if not (ytop < ybottom) == (oldytop < oldybottom):
+            ytop,ybottom = ybottom,ytop            
+
+        pxleft,pytop = self.coord2pixel(xleft,ytop)
+        pxright,pybottom = self.coord2pixel(xright,ybottom)
+
+        self.img = self.img.crop((pxleft,pytop,pxright,pybottom))
+        self.update_drawer_img()
+        
+        self.custom_space(xleft,ytop,xright,ybottom, lock_ratio=False)
+
         return self        
 
     def update_drawer_img(self):
@@ -688,68 +736,6 @@ class Canvas:
                                                                   self.coordspace_width,
                                                                   self.coordspace_height,
                                                                   fit=fit)
-            
-##            xs = xleft,xright
-##            ys = ytop,ybottom
-##            xwidth = newwidth = max(xs) - min(xs)
-##            yheight = newheight = max(ys) - min(ys)
-##
-##            # maintain aspect ratio
-##            # brute force but works...
-##            targetaspect = self.coordspace_width/float(self.coordspace_height)
-##
-##            if fit:
-##                # WORKS
-##                if self.coordspace_width > self.coordspace_height:
-##                    # wide coordsys
-##                    if newwidth < newheight:
-##                        # tall bbox
-##                        newwidth = newheight * targetaspect
-##                    if newwidth > newheight:
-##                        # wide bbox
-##                        newheight = newwidth / float(targetaspect)
-##                else:
-##                    # tall coordsys
-##                    if newwidth < newheight:
-##                        # tall bbox
-##                        newwidth = newheight * targetaspect
-##                    if newwidth > newheight:
-##                        # wide bbox
-##                        newheight = newwidth / float(targetaspect)
-##            else:
-##                # NOT CHECKED YET...
-##                if self.coordspace_width > self.coordspace_height:
-##                    # wide coordsys
-##                    if newwidth > newheight:
-##                        # wide bbox
-##                        newwidth = newheight * targetaspect
-##                    if newwidth < newheight:
-##                        # tall bbox
-##                        newheight = newwidth / float(targetaspect)
-##                else:
-##                    # tall coordsys
-##                    if newwidth > newheight:
-##                        # wide bbox
-##                        newwidth = newheight * targetaspect
-##                    if newwidth < newheight:
-##                        # tall bbox
-##                        newheight = newwidth / float(targetaspect)
-##                        
-##            # old but more mathematically correct: grow to the required size
-##            # see: http://stackoverflow.com/questions/7863653/algorithm-to-resize-image-and-maintain-aspect-ratio-to-fit-iphone
-####            widthratio = self.coordspace_width / float(newwidth)
-####            heightratio = self.coordspace_height / float(newheight)
-####            if fit:
-####                ratio = widthratio if widthratio < heightratio else heightratio
-####            else:
-####                ratio = widthratio if widthratio > heightratio else heightratio
-####            newwidth = newwidth*ratio
-####            newheight = newheight*ratio
-####            
-####            print newwidth/float(newheight),newwidth,newheight
-##
-##            bbox = [xleft,ytop,xright,ybottom]
-##            xleft,ytop,xright,ybottom = bboxhelper.resize_dimensions(bbox, newwidth, newheight)
             
         # zoom the image
         pxleft,pytop = self.coord2pixel(xleft,ytop)

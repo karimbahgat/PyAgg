@@ -59,10 +59,10 @@ def test_text():
     canvas.draw_triangle((50,50),fillsize="1", fillcolor=(0,0,0, 111))
 
     miniimg = pyagg.load("C:/Users/kimo/Desktop/ble.png")
-    canvas.paste(miniimg, bbox=[10,10,40,40])
+    canvas.paste(miniimg, bbox=[10,10,130,40], lock_ratio=True, fit=True)
     
     #canvas.zoom_bbox(11,0,112,40, lock_ratio=True)
-    canvas.zoom_bbox(40,10,80,140, lock_ratio=True, fit=True)
+    #canvas.zoom_bbox(40,10,80,140, lock_ratio=True, fit=True)
     #canvas.zoom_factor(2)
     #print canvas.coordspace_units
     #canvas.zoom_units(1)
@@ -77,6 +77,15 @@ def test_text():
     canvas.draw_text(str(xy), xy, textsize=33, anchor="nw")
     xy = canvas.pixel2coord(canvas.width,canvas.height)
     canvas.draw_text(str(xy), xy, textsize=33, anchor="se")
+
+    #canvas.rotate(45)
+    #canvas.crop(14,54,55,81)
+    canvas.resize(1100,300,lock_ratio=True)
+    print canvas.coordspace_bbox
+    canvas.draw_line([10,10, 50,90, 90,10],
+                     smooth=True,
+                     fillcolor=(222,0,0),
+                     fillsize="2cm")
     
     canvas.save("C:/Users/kimo/Desktop/ble.png")#view()
 
