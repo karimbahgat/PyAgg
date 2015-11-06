@@ -593,7 +593,9 @@ class Canvas:
         # center it
         if center:
             newbbox = bboxhelper.center(newbbox, center)
-        self.zoom_bbox(*newbbox, lock_ratio=False)
+        self.zoom_bbox(*newbbox, lock_ratio=True, fit=False)
+        # NOTE: Not sure if this fit=False will always keep the correct side width or height
+        # ...
 
         self.update_drawer_img()
 
@@ -648,7 +650,7 @@ class Canvas:
         """
         self.zoom_factor(-1 * factor, center)        
 
-    def zoom_bbox(self, xmin, ymin, xmax, ymax, lock_ratio=True):
+    def zoom_bbox(self, xmin, ymin, xmax, ymax, lock_ratio=True, fit=True):
         """
         Essentially the same as using coord_space(), but takes a bbox
         in min/max format instead, converting to left/right/etc behind
@@ -675,26 +677,126 @@ class Canvas:
             ytop,ybottom = ybottom,ytop
             
         # constrain the coordinate view ratio to the screen ratio, shrinking the coordinate space to ensure that it is fully contained inside the image
-        # NOTE: not fully working yet
+        # NOTE: figure out why we use coordspace dimensions here
+        # ...and image pixel dimensions in custom_coordspace().
         if lock_ratio:
             xs = xleft,xright
             ys = ytop,ybottom
             xwidth = max(xs) - min(xs)
             yheight = max(ys) - min(ys)
-            # make coords same proportions as canvas image
-            screenxratio = self.width / float(self.height)
-            yheight = yheight
-            xwidth = yheight * screenxratio
-            # ensure that altered coords do not shrink the original coords
-##            diffratio = 1.0
-##            if xwidth < oldxwidth: diffratio = oldxwidth / float(xwidth)
-##            elif yheight < oldyheight: diffratio = oldyheight / float(yheight)
-##            xwidth *= diffratio
-##            yheight *= diffratio
-            # move the center of focus to middle of coordinate space if view ratio has been constrained
-            # ...
-            xleft,ytop,xright,ybottom = bboxhelper.resize_dimensions([xleft,ytop,xright,ybottom],
-                                                                     xwidth, yheight)
+            widthratio = self.coordspace_width / float(xwidth)
+            heightratio = self.coordspace_height / float(yheight)
+            # resize one side to maintain aspect ratio
+##            print widthratio,heightratio
+##            yheight = xwidth * heightratio
+##            xwidth = yheight * widthratio
+            
+##            if widthratio > 1:
+##                yheight = xwidth * heightratio
+##            else:
+##                xwidth = yheight * widthratio
+##            if heightratio > 1:
+##                yheight = xwidth * heightratio
+##            else:
+##                xwidth = yheight * widthratio
+           
+##            if self.coordspace_width < self.coordspace_height:
+##                xwidth = 
+##            yheight = xwidth * heightratio
+##            xwidth = yheight * widthratio
+##            yheight = xwidth * heightratio
+##            widthratio = self.coordspace_width / float(xwidth)
+##            heightratio = self.coordspace_height / float(yheight)
+            
+            # grow to the required size
+            # see: http://stackoverflow.com/questions/7863653/algorithm-to-resize-image-and-maintain-aspect-ratio-to-fit-iphone
+##            widthratio = self.coordspace_width / float(xwidth)
+##            heightratio = self.coordspace_height / float(yheight)
+##            if fit:
+##                ratio = widthratio if widthratio < heightratio else heightratio
+##            else:
+##                ratio = widthratio if widthratio < heightratio else heightratio
+##            newwidth = xwidth*ratio
+##            newheight = yheight*ratio
+            
+            # initial go
+##            fromaspectratio = xwidth/float(yheight)
+##            #yheight = xwidth * self.coordspace_height/float(self.coordspace_width)
+##            #xwidth = yheight * self.coordspace_width/float(self.coordspace_height)
+##            toaspectratio = self.coordspace_width / float(self.coordspace_height)
+##            print fit, toaspectratio,fromaspectratio
+##            if not fit: # ie fill
+##                if toaspectratio > fromaspectratio:
+##                    scalingfactor = self.coordspace_width / float(xwidth)
+##                else:
+##                    scalingfactor = self.coordspace_height / float(yheight)
+##            else:
+##                if toaspectratio > fromaspectratio:
+##                    scalingfactor = self.coordspace_height / float(yheight)
+##                else:
+##                    scalingfactor = self.coordspace_width / float(xwidth)
+##            print scalingfactor
+##            newwidth = xwidth * scalingfactor
+##            newheight = yheight * scalingfactor
+            
+##            widthratio = self.coordspace_width / float(self.coordspace_height)
+##            heightratio = self.coordspace_height / float(self.coordspace_width)
+##            print xwidth,yheight
+
+##            if xwidth/float(yheight) > widthratio:
+##                newwidth = yheight * widthratio
+##                newheight = xwidth * heightratio
+##                if fit:
+##                    newwidth = newheight * widthratio
+##            elif xwidth/float(yheight) < widthratio:
+##                newheight = xwidth * heightratio
+##                newwidth = yheight * widthratio
+##                if fit:
+##                    newheight = newwidth * heightratio
+
+##            if fit:
+##                if xwidth/float(yheight) > widthratio:
+##                    newwidth = yheight * widthratio
+##                    newheight = xwidth * heightratio
+##                elif xwidth/float(yheight) < widthratio:
+##                    newheight = xwidth * heightratio
+##                    newwidth = yheight * widthratio
+##            else:
+##                if xwidth/float(yheight) < widthratio:
+##                    newwidth = yheight * widthratio
+##                    newheight = xwidth * heightratio
+##                elif xwidth/float(yheight) > widthratio:
+##                    newheight = xwidth * heightratio
+##                    newwidth = yheight * widthratio
+            
+            newheight = yheight
+            newwidth = yheight * widthratio
+####            newwidth = yheight * widthratio
+####            newheight = xwidth * heightratio
+####            newwidth = newheight * widthratio
+##            print newwidth,newheight
+##            
+####            # adjust up or down depending on fillrule            
+####            if (fit and newwidth < xwidth) or (not fit and newwidth > xwidth):
+####                newwidth = newwidth
+####                newheight = newwidth * heightratio
+####            else:
+####                newheight = newheight
+####                newwidth = newheight * widthratio
+####            print newwidth,newheight
+####
+            diffratio = 1.0
+            if fit:
+                if newwidth < xwidth: diffratio = xwidth / float(newwidth)
+                elif newheight < yheight: diffratio = yheight / float(newheight)
+            elif not fit:
+                if newwidth > xwidth: diffratio = xwidth / float(newwidth)
+                elif newheight > yheight: diffratio = yheight / float(newheight)
+            newwidth *= diffratio
+            newheight *= diffratio
+            
+            bbox = [xleft,ytop,xright,ybottom]
+            xleft,ytop,xright,ybottom = bboxhelper.resize_dimensions(bbox, newwidth, newheight)
             
         # zoom the image
         pxleft,pytop = self.coord2pixel(xleft,ytop)
@@ -705,7 +807,8 @@ class Canvas:
                                       PIL.Image.BILINEAR)
         
         # zoom the coord space
-        self.custom_space(xleft, ytop, xright, ybottom, lock_ratio=lock_ratio)
+        # NOTE: disabling aspect ratio because already calculated the bbox correctly
+        self.custom_space(xleft, ytop, xright, ybottom, lock_ratio=False) 
         
         self.update_drawer_img()
 
