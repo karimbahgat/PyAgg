@@ -3,6 +3,30 @@ Contains several helper functions for manipulating bounding boxes.
 Mostly used internally.
 """
 
+def conform_aspect(bbox, targetwidth, targetheight, fit=True):
+    x1,y1,x2,y2 = bbox
+    xs = x1,x2
+    ys = y1,y2
+    xwidth = newwidth = max(xs) - min(xs)
+    yheight = newheight = max(ys) - min(ys)
+    targetaspect = targetwidth/float(targetheight)
+    if fit:
+        if newwidth < newheight:
+            # tall bbox
+            newwidth = newheight * targetaspect
+        if newwidth > newheight:
+            # wide bbox
+            newheight = newwidth / float(targetaspect)
+    else:
+        if newwidth > newheight:
+            # wide bbox
+            newwidth = newheight * targetaspect
+        if newwidth < newheight:
+            # tall bbox
+            newheight = newwidth / float(targetaspect)
+
+    return resize_dimensions(bbox, newwidth, newheight)
+
 def resize_ratio(bbox, xratio, yratio):
     # remember old
     x1,y1,x2,y2 = bbox

@@ -61,9 +61,9 @@ def test_text():
     miniimg = pyagg.load("C:/Users/kimo/Desktop/ble.png")
     canvas.paste(miniimg, bbox=[10,10,40,40])
     
-    canvas.zoom_bbox(11,0,112,40, lock_ratio=True)
-    #canvas.zoom_bbox(-27,10,90,190, lock_ratio=True)
-    #canvas.zoom_factor(3)
+    #canvas.zoom_bbox(11,0,112,40, lock_ratio=True)
+    canvas.zoom_bbox(40,10,80,140, lock_ratio=True, fit=True)
+    #canvas.zoom_factor(2)
     #print canvas.coordspace_units
     #canvas.zoom_units(1)
     #print canvas.coordspace_units

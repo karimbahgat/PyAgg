@@ -416,6 +416,9 @@ class Canvas:
             bbheight = max(ys) - min(ys)
             image = from_image(image).resize(bbwidth,bbheight).img
             xy = min(xs),min(ys) # NOTE: not correct nw corner...
+
+            # MAYBE ADD LOCK_RATIO AND FIT/FILL OPTION
+            # ...
             
         elif xy:
             # Parse xy location from any type of unit to pixels
@@ -680,65 +683,73 @@ class Canvas:
         # NOTE: figure out why we use coordspace dimensions here
         # ...and image pixel dimensions in custom_coordspace().
         if lock_ratio:
-            xs = xleft,xright
-            ys = ytop,ybottom
-            xwidth = newwidth = max(xs) - min(xs)
-            yheight = newheight = max(ys) - min(ys)
-
-            # maintain aspect ratio
-            # brute force but works...
-            targetaspect = self.coordspace_width/float(self.coordspace_height)
-
-            if fit:
-                # WORKS
-                if self.coordspace_width > self.coordspace_height:
-                    # wide coordsys
-                    if newwidth < newheight:
-                        # tall bbox
-                        newwidth = newheight * targetaspect
-                    if newwidth > newheight:
-                        # wide bbox
-                        newheight = newwidth / float(targetaspect)
-                else:
-                    # tall coordsys
-                    if newwidth < newheight:
-                        # tall bbox
-                        newwidth = newheight * targetaspect
-                    if newwidth > newheight:
-                        # wide bbox
-                        newheight = newwidth / float(targetaspect)
-            else:
-                # NOT CHECKED YET...
-                if self.coordspace_width < self.coordspace_height:
-                    if newwidth > newheight:
-                        newheight = newheight
-                        newwidth = newheight * targetaspect
-                    else:
-                        newwidth = newwidth
-                        newheight = newwidth / float(targetaspect)
-                else: 
-                    if newwidth < newheight:
-                        newheight = newheight
-                        newwidth = newheight * targetaspect
-                    else:
-                        newwidth = newwidth
-                        newheight = newwidth / float(targetaspect)
-                        
-            # old but more mathematically correct: grow to the required size
-            # see: http://stackoverflow.com/questions/7863653/algorithm-to-resize-image-and-maintain-aspect-ratio-to-fit-iphone
-##            widthratio = self.coordspace_width / float(newwidth)
-##            heightratio = self.coordspace_height / float(newheight)
-##            if fit:
-##                ratio = widthratio if widthratio < heightratio else heightratio
-##            else:
-##                ratio = widthratio if widthratio > heightratio else heightratio
-##            newwidth = newwidth*ratio
-##            newheight = newheight*ratio
-##            
-##            print newwidth/float(newheight),newwidth,newheight
-
             bbox = [xleft,ytop,xright,ybottom]
-            xleft,ytop,xright,ybottom = bboxhelper.resize_dimensions(bbox, newwidth, newheight)
+            xleft,ytop,xright,ybottom = bboxhelper.conform_aspect(bbox,
+                                                                  self.coordspace_width,
+                                                                  self.coordspace_height,
+                                                                  fit=fit)
+            
+##            xs = xleft,xright
+##            ys = ytop,ybottom
+##            xwidth = newwidth = max(xs) - min(xs)
+##            yheight = newheight = max(ys) - min(ys)
+##
+##            # maintain aspect ratio
+##            # brute force but works...
+##            targetaspect = self.coordspace_width/float(self.coordspace_height)
+##
+##            if fit:
+##                # WORKS
+##                if self.coordspace_width > self.coordspace_height:
+##                    # wide coordsys
+##                    if newwidth < newheight:
+##                        # tall bbox
+##                        newwidth = newheight * targetaspect
+##                    if newwidth > newheight:
+##                        # wide bbox
+##                        newheight = newwidth / float(targetaspect)
+##                else:
+##                    # tall coordsys
+##                    if newwidth < newheight:
+##                        # tall bbox
+##                        newwidth = newheight * targetaspect
+##                    if newwidth > newheight:
+##                        # wide bbox
+##                        newheight = newwidth / float(targetaspect)
+##            else:
+##                # NOT CHECKED YET...
+##                if self.coordspace_width > self.coordspace_height:
+##                    # wide coordsys
+##                    if newwidth > newheight:
+##                        # wide bbox
+##                        newwidth = newheight * targetaspect
+##                    if newwidth < newheight:
+##                        # tall bbox
+##                        newheight = newwidth / float(targetaspect)
+##                else:
+##                    # tall coordsys
+##                    if newwidth > newheight:
+##                        # wide bbox
+##                        newwidth = newheight * targetaspect
+##                    if newwidth < newheight:
+##                        # tall bbox
+##                        newheight = newwidth / float(targetaspect)
+##                        
+##            # old but more mathematically correct: grow to the required size
+##            # see: http://stackoverflow.com/questions/7863653/algorithm-to-resize-image-and-maintain-aspect-ratio-to-fit-iphone
+####            widthratio = self.coordspace_width / float(newwidth)
+####            heightratio = self.coordspace_height / float(newheight)
+####            if fit:
+####                ratio = widthratio if widthratio < heightratio else heightratio
+####            else:
+####                ratio = widthratio if widthratio > heightratio else heightratio
+####            newwidth = newwidth*ratio
+####            newheight = newheight*ratio
+####            
+####            print newwidth/float(newheight),newwidth,newheight
+##
+##            bbox = [xleft,ytop,xright,ybottom]
+##            xleft,ytop,xright,ybottom = bboxhelper.resize_dimensions(bbox, newwidth, newheight)
             
         # zoom the image
         pxleft,pytop = self.coord2pixel(xleft,ytop)
