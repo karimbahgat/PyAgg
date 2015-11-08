@@ -10,7 +10,7 @@ from __future__ import division
 
 # Import dependencies
 import PIL, PIL.Image, PIL.ImageTk, PIL.ImageDraw, PIL.ImageFont
-import PIL.ImageOps, PIL.ImageChops
+import PIL.ImageOps, PIL.ImageChops, PIL.ImageMath, PIL.ImageEnhance
 
 # Import builtins
 import sys, os
@@ -98,6 +98,24 @@ def _pairwise(iterable):
     a, b = itertools.tee(iterable)
     next(b, None)
     return itertools.izip(a, b)
+
+def _floatrange(start, end, interval):
+    # force interval input to be positive
+    if interval < 0:
+        interval *= -1
+    # count forward
+    if start < end:
+        cur = start
+        while cur < end:
+            yield cur
+            cur += interval
+    # or backwards
+    else:
+        cur = start
+        while cur > end:
+            yield cur
+            cur -= interval
+
 
 
 
@@ -557,27 +575,147 @@ class Canvas:
 
     # Color quality
 
-##    def brightness():
-##        pass
-##
-##    def contrast():
-##        pass
-##
-##    def transparency(self, alpha):
-##        self.drawer.flush()
+    def brightness(self, factor):
+        self.drawer.flush()
+        self.img = PIL.ImageEnhance.Brightness(self.img).enhance(factor)
+        self.update_drawer_img()
+        return self
+
+    def contrast(self, factor):
+        self.drawer.flush()
+        self.img = PIL.ImageEnhance.Contrast(self.img).enhance(factor)
+        self.update_drawer_img()
+        return self
+
+    def blur(self, factor):
+        self.drawer.flush()
+        factor = 1 - factor # input is 0-1, PIL expects 0-1.
+        self.img = PIL.ImageEnhance.Sharpness(self.img).enhance(factor)
+        self.update_drawer_img()
+        return self
+
+    def sharpen(self, factor):
+        self.drawer.flush()
+        factor += 1 # input is 0-1, PIL expects 1-2.
+        self.img = PIL.ImageEnhance.Sharpness(self.img).enhance(factor)
+        self.update_drawer_img()
+        return self
+
+    def equalize(self):
+        self.drawer.flush()
+        self.img = PIL.ImageOps.equalize(self.img)
+        self.update_drawer_img()
+        return self
+
+    def invert(self):
+        self.drawer.flush()
+        self.img = PIL.ImageOps.invert(self.img)
+        self.update_drawer_img()
+        return self
+        
+    def transparency(self, alpha):
+        self.drawer.flush()
 ##        blank = PIL.Image.new(self.img.mode, self.img.size, None)
 ##        self.img = blank.paste(self.img, (0,0), alpha)
-##        self.update_drawer_img()
-##        return self
-##
-##    def transparent_color(self, color, alpha, tolerance=0):
-##        # make all specified color values transparent (alpha)
-##        # ...alternatively with a tolerance for almost matching colors
-##        pass
-##
-##    def color_tint():
-##        # add rgb color to each pixel
-##        pass
+        self.img.putalpha(alpha)
+        self.update_drawer_img()
+        return self
+
+    def transparent_color(self, color, alpha=0, tolerance=0):
+        # make all specified color values transparent (alpha)
+        # ...alternatively with a tolerance for almost matching colors
+        self.drawer.flush()
+        
+        if tolerance == 0:
+            image = self.img.convert("RGBA")
+            r,g,b,a = image.split()
+            red_mask = r.point(lambda px: alpha if px == color[0] else 255, "L")
+            green_mask = g.point(lambda px: alpha if px == color[1] else 255, "L")
+            blue_mask = b.point(lambda px: alpha if px == color[2] else 255, "L")
+            all_mask = PIL.ImageMath.eval("convert(r | g | b, 'L')", r=red_mask, g=green_mask, b=blue_mask)
+            image.putalpha(all_mask)
+        else:
+            image = self.img.convert("RGBA")
+            r,g,b,a = image.split()
+            tolerance = 255 * tolerance
+            def diff(a, b):
+                # absolute positive diff
+                if a >= b:
+                    _diff = a - b
+                else:
+                    _diff = b - a
+                return _diff 
+            red_diff = r.point(lambda px: diff(px,color[0]), "L")
+            green_diff = g.point(lambda px: diff(px,color[1]), "L")
+            blue_diff = b.point(lambda px: diff(px,color[2]), "L")
+            avg_diff = PIL.ImageMath.eval("convert((r+g+b) / 3.0, 'L')",
+                                          r=red_diff, g=green_diff, b=blue_diff)
+            all_mask = avg_diff.point(lambda px: alpha if px <= tolerance else 255)
+            image.putalpha(all_mask)
+
+            # from: http://stackoverflow.com/questions/765736/using-pil-to-make-all-white-pixels-transparent
+##            def distance(a, b):
+##                return (a[0] - b[0]) * (a[0] - b[0]) + (a[1] - b[1]) * (a[1] - b[1]) + (a[2] - b[2]) * (a[2] - b[2])
+##            image = self.img.convert("RGBA")
+##            red, green, blue, alpha = image.split()
+##            image.putalpha(PIL.ImageMath.eval("""convert(((((t - d(c, (r, g, b))) >> 31) + 1) ^ 1) * a, 'L')""",
+##                t=tolerance, d=distance, c=color, r=red, g=green, b=blue, a=alpha))
+            
+        self.img = image
+        self.update_drawer_img()
+        return self
+
+    def replace_color(self, color, newcolor, tolerance=0):
+        # replace all specified color values with another color
+        # ...alternatively with a tolerance for almost matching colors
+        self.drawer.flush()
+        
+        if tolerance == 0:
+            image = self.img.convert("RGBA")
+            r,g,b,a = image.split()
+            red_mask = r.point(lambda px: 0 if px == color[0] else 255, "L")
+            green_mask = g.point(lambda px: 0 if px == color[1] else 255, "L")
+            blue_mask = b.point(lambda px: 0 if px == color[2] else 255, "L")
+            all_mask = PIL.ImageMath.eval("convert(r | g | b, 'L')", r=red_mask, g=green_mask, b=blue_mask)
+            image.putalpha(all_mask)
+        else:
+            image = self.img.convert("RGBA")
+            r,g,b,a = image.split()
+            tolerance = 255 * tolerance # tolerance is 0-1
+            def diff(a, b):
+                # absolute positive diff
+                if a >= b:
+                    _diff = a - b
+                else:
+                    _diff = b - a
+                return _diff 
+            red_diff = r.point(lambda px: diff(px,color[0]), "L")
+            green_diff = g.point(lambda px: diff(px,color[1]), "L")
+            blue_diff = b.point(lambda px: diff(px,color[2]), "L")
+            avg_diff = PIL.ImageMath.eval("convert((r+g+b) / 3.0, 'L')",
+                                          r=red_diff, g=green_diff, b=blue_diff)
+            all_mask = avg_diff.point(lambda px: 0 if px <= tolerance else 255)
+            image.putalpha(all_mask)
+
+        newimg = PIL.Image.new("RGB", image.size, newcolor)
+        newimg.paste(image, (0,0), image)
+
+        self.img = newimg
+        self.update_drawer_img()
+        return self
+
+    def color_tint(self, color):
+        # add rgb color to each pixel
+        # from: http://stackoverflow.com/questions/12251896/colorize-image-while-preserving-transparency-with-pil
+        self.drawer.flush()
+        r, g, b, alpha = self.img.split()
+        gray = PIL.ImageOps.grayscale(self.img)
+        result = PIL.ImageOps.colorize(gray, (0, 0, 0, 0), color) 
+        result.putalpha(alpha)
+        self.img = result
+        self.update_drawer_img()
+        return self
+        
 
 
 
@@ -590,12 +728,51 @@ class Canvas:
 
     # Layout
 
+    def draw_grid(self, xorigin, yorigin, xinterval, yinterval, **kwargs):
+        # ONLY BASIC SO FAR...
+        xleft,ytop,xright,ybottom = self.coordspace_bbox
+        xs = (xleft,xright)
+        ys = (ytop,ybottom)
+        xmin,xmax = min(xs),max(xs)
+        ymin,ymax = min(ys),max(ys)
+        
+        if "fillsize" not in kwargs:
+            kwargs["fillsize"] = "1px"
+        
+        # x
+        for x in _floatrange(xorigin, xmin, -xinterval):
+            self.draw_line([(x,ymax),(x,ymin)], **kwargs)
+        for x in _floatrange(xorigin, xmax, xinterval):
+            self.draw_line([(x,ymax),(x,ymin)], **kwargs)
+
+        # y
+        for y in _floatrange(yorigin, ymin, -yinterval):
+            self.draw_line([(xmin,y),(xmax,y)], **kwargs)
+        for y in _floatrange(yorigin, ymax, yinterval):
+            self.draw_line([(xmin,y),(xmax,y)], **kwargs)
+
+    def draw_axis(self, axis, origin, length, tickinterval, ticklabels):
+        # ...
+        pass
+
 ##    def insert_graph(self, image, bbox, xaxis, yaxis):
 ##        # maybe by creating and drawing on images as subplots,
 ##        # and then passing them in as figures that draw their
 ##        # own coordinate axes if specified and then paste themself.
 ##        # ... 
 ##        pass
+
+    def paste_grid(self):
+        pass
+
+    def warp(self, oldxs, oldys, newxs, newys, method):
+        # not sure if python has any functions for this
+        # so probably resort to my pure python scripts
+        # with a choice between nearest neighbour, bilinear, and idw algorithms
+        pass
+
+    ###############################
+    
 
     @property
     def coordspace_width(self):

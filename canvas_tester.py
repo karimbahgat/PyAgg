@@ -30,6 +30,7 @@ def test_text():
     canvas.custom_space(0,0,140,100)
     #canvas.flip(True, True)
     #canvas.rotate(30)
+    canvas.draw_grid(33,33,10,10)
     
     canvas.draw_line([10,10, 50,90, 90,10],
                      smooth=True,
@@ -58,8 +59,8 @@ def test_text():
     canvas.draw_box((50,50),fillsize="1", fillcolor=(0,0,0, 111))
     canvas.draw_triangle((50,50),fillsize="1", fillcolor=(0,0,0, 111))
 
-    miniimg = pyagg.load("C:/Users/kimo/Desktop/ble.png")
-    canvas.paste(miniimg, bbox=[10,10,130,40], lock_ratio=True, fit=True)
+    #miniimg = pyagg.load("C:/Users/kimo/Desktop/ble.png")
+    #canvas.paste(miniimg, bbox=[10,10,130,40], lock_ratio=True, fit=True)
     
     #canvas.zoom_bbox(11,0,112,40, lock_ratio=True)
     #canvas.zoom_bbox(40,10,80,140, lock_ratio=True, fit=True)
@@ -80,12 +81,19 @@ def test_text():
 
     #canvas.rotate(45)
     #canvas.crop(14,54,55,81)
-    canvas.resize(1100,300,lock_ratio=True)
-    print canvas.coordspace_bbox
-    canvas.draw_line([10,10, 50,90, 90,10],
-                     smooth=True,
-                     fillcolor=(222,0,0),
-                     fillsize="2cm")
+##    canvas.resize(1100,300,lock_ratio=True)
+##    print canvas.coordspace_bbox
+##    canvas.draw_line([10,10, 50,90, 90,10],
+##                     smooth=True,
+##                     fillcolor=(222,0,0),
+##                     fillsize="2cm")
+    #canvas.transparency(111)
+    #canvas.transparent_color((222,0,0), tolerance=0.1)
+    #canvas.replace_color((0,0,0), (0,222,211), tolerance=0.2)
+    #canvas.blur(1)
+    #canvas.equalize()
+    #canvas.contrast(2)
+    canvas.color_tint((222,0,0))
     
     canvas.save("C:/Users/kimo/Desktop/ble.png")#view()
 
