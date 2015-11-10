@@ -30,8 +30,13 @@ def test_text():
     canvas.custom_space(0,0,140,100)
     #canvas.flip(True, True)
     #canvas.rotate(30)
-    canvas.draw_grid(33,33,10,10)
-    
+    #canvas.move("51x","51y")
+    canvas.draw_grid(25,25)
+    canvas.zoom_out(1.4)
+    canvas.draw_axis("x", 0, 140, 0, 25, ticklabeloptions={"textsize":30, "rotate":40, "anchor":"sw","fillcolor":"white"})
+    canvas.draw_axis("y", 0, 100, 0, 25, ticklabeloptions={"textsize":30, "rotate":70, "anchor":"ne"},
+                     tickfunc=canvas.draw_circle, tickoptions={"fillsize":"1%min"})
+
     canvas.draw_line([10,10, 50,90, 90,10],
                      smooth=True,
                      fillcolor=(222,0,0),
@@ -79,6 +84,9 @@ def test_text():
     xy = canvas.pixel2coord(canvas.width,canvas.height)
     canvas.draw_text(str(xy), xy, textsize=33, anchor="se")
 
+    # draw rotated text
+    canvas.draw_text("Rotated", (100,50), textcolor="black", textsize=32, rotate=15)
+
     #canvas.rotate(45)
     #canvas.crop(14,54,55,81)
 ##    canvas.resize(1100,300,lock_ratio=True)
@@ -93,7 +101,70 @@ def test_text():
     #canvas.blur(1)
     #canvas.equalize()
     #canvas.contrast(2)
-    canvas.color_tint((222,0,0))
+    #canvas.color_tint((0,222,0))
+
+##    def imggen():
+##        import os
+##        import PIL, PIL.Image, PIL.ImageOps
+##        count = 0
+##        for filename in os.listdir("C:/Users/kimo/Pictures/2015-05-22 iPhone,22may2015"):
+##            if filename.lower().endswith(".jpg"):
+##                img = PIL.Image.open("C:/Users/kimo/Pictures/2015-05-22 iPhone,22may2015/"+filename)
+##                yield img
+##                count += 1
+##            if count > 17:
+##                break
+##    canvas.grid_paste(imggen(), fit=True)
+
+    # try normal warp
+    #canvas = pyagg.load("C:/Users/kimo/Desktop/world.gif")
+    #canvas.custom_space(-180,90,180,-90) 
+    #canvas.warp(lambda x,y: (x**2,y**2))
+
+    #############################
+    # some geo proj experiments
+    import pyproj
+    _from = pyproj.Proj("+init=EPSG:4326")
+    _to = pyproj.Proj("+proj=robin +lon_0=0 +lat_0=0")
+    
+    # draw axes
+    xs,_ = pyproj.transform(_from, _to, [-179,179], [0,0])
+    xleft,xright = xs
+    _,ys = pyproj.transform(_from, _to, [0,0], [-89,89])
+    ytop,ybottom = ys
+    print xs,ys,xleft,ytop,xright,ybottom
+    canvas.custom_space(xleft,ytop,xright,ybottom)
+    canvas.zoom_out(1.2)
+    canvas.draw_axis("x", xleft, xright, ybottom, 1000000, ticklabeloptions={"rotate":45,"anchor":"ne"})
+    canvas.draw_axis("y", ytop, ybottom, xleft, 1000000)
+
+    # try warp entire image to a curved geo proj
+    # should work (but maybe not since doesnt account for coord differences
+    # inside the coordsys except on the edges...?), but so far not working
+    def convfunc(x,y):
+        try:
+            xs,ys = pyproj.transform(_from, _to, [x], [y])
+            newpoint = xs[0],ys[0]
+            #print "yes",newpoint
+        except:
+            newpoint = (x,y) # bad hack
+            print "hack",newpoint
+        return newpoint
+    canvas = pyagg.load("C:/Users/kimo/Desktop/world.gif")
+    canvas.custom_space(-180,90,180,-90) #geographic_space() # no, bc keeps aspect ratio and thus goes out of bounds
+    canvas.warp(convfunc)
+
+    # geo proj transform grid lines
+    # draw longitude lines to be curved
+    
+##    for lon in range(-180,180,10):
+##        ys = range(-90,90,1)
+##        xs = [lon for _ in ys]
+##        xs,ys = pyproj.transform(_from, _to, xs, ys)
+##        ln = zip(xs,ys)
+##        canvas.draw_line(ln, fillsize="1px", fillcolor=(0,0,0,111))
+##    #canvas.custom_space(-180,90,180,-90)
+##    #canvas.zoom_bbox(-180,90,0,0)
     
     canvas.save("C:/Users/kimo/Desktop/ble.png")#view()
 

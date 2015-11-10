@@ -76,6 +76,16 @@ def y_to_px(diststring, height, coordheight):
     pixels = height * rely
     return pixels
 
+def px_to_x(columndist, width, coordwidth):
+    relcol = columndist / float(width)
+    x = coordwidth * relcol
+    return x
+
+def px_to_y(rowdist, height, coordheight):
+    relrow = rowdist / float(height)
+    y = coordheight * relrow
+    return y
+
 ##def x_to_px(diststring, x2px_func):
 ##    diststring = diststring.replace("x", "")
 ##    xdist = eval(diststring)

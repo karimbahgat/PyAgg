@@ -21,6 +21,7 @@ import random
 import traceback
 import warnings
 import textwrap
+import math
 
 # Import submodules
 PYAGGFOLDER = os.path.split(__file__)[0]
@@ -28,6 +29,7 @@ from . import affine
 from . import units
 from . import bboxhelper
 from . import fonthelper
+from . import gridinterp
 
 ##############################
 # Determine OS and bitsystem
@@ -393,7 +395,7 @@ class Canvas:
         # paste self on blank at offset pixel coords
         self.drawer.flush()
         blank = PIL.Image.new(self.img.mode, self.img.size, None)
-        blank.paste(self.img, (xmove, ymove))
+        blank.paste(self.img, (int(xmove), int(ymove)))
         self.img = blank
         # similarly move the drawing transform
         # by converting pixels to coord distances
@@ -728,7 +730,7 @@ class Canvas:
 
     # Layout
 
-    def draw_grid(self, xorigin, yorigin, xinterval, yinterval, **kwargs):
+    def draw_grid(self, xinterval, yinterval, **kwargs):
         # ONLY BASIC SO FAR...
         xleft,ytop,xright,ybottom = self.coordspace_bbox
         xs = (xleft,xright)
@@ -738,6 +740,8 @@ class Canvas:
         
         if "fillsize" not in kwargs:
             kwargs["fillsize"] = "1px"
+
+        xorigin, yorigin = 0,0
         
         # x
         for x in _floatrange(xorigin, xmin, -xinterval):
@@ -751,9 +755,158 @@ class Canvas:
         for y in _floatrange(yorigin, ymax, yinterval):
             self.draw_line([(xmin,y),(xmax,y)], **kwargs)
 
-    def draw_axis(self, axis, origin, length, tickinterval, ticklabels):
+    def grid_paste(self, imgs, columns=None, rows=None, colfirst=True, lock_ratio=True, fit=True):
+        # canvas size
+        width,height = self.width,self.height
+        # in case imgs is a generator
+        imggen,imgcounter = itertools.tee((img for img in imgs))
+        img_len = sum((1 for _ in imgcounter))
+
+        # auto find best grid size
+        if not columns and not rows:
+            # see: http://stackoverflow.com/questions/3513081/create-an-optimal-grid-based-on-n-items-total-area-and-hw-ratio
+            aspect_ratio = height/float(width) # * (tilewidth/tileheight)
+            #rows = math.sqrt(len(imgs) * aspect_ratio)
+            columns = math.sqrt(img_len/float(aspect_ratio))
+            #if not rows.is_integer():
+            #    rows += 1
+            if not columns.is_integer():
+                columns += 1
+        if columns and not rows:
+            columns = round(columns)
+            rows = img_len/float(columns)
+            if not rows.is_integer():
+                rows += 1
+        elif rows and not columns:
+            rows = round(rows)
+            columns = img_len/float(rows)
+            if not columns.is_integer():
+                columns += 1
+        columns,rows = map(int,(columns,rows))
+
+        # insert
+        pastewidth = int(width/columns)
+        pasteheight = int(height/rows)
+
+        if colfirst:
+            y = 0
+            for row in range(rows):
+                x = 0
+                for col in range(columns):
+                    img = next(imggen, None)
+                    # get canvas if needed
+                    if isinstance(img, Canvas): canvas = img
+                    elif isinstance(img, PIL.Image.Image): canvas = from_image(img)
+                    elif isinstance(img, str): canvas = load(img)
+                    if canvas:
+                        # resize subimg
+                        canvas.resize(pastewidth, pasteheight, lock_ratio=lock_ratio, fit=fit)
+                        # paste
+                        self.paste(canvas, (x,y))
+                    x += pastewidth
+                    
+                y += pasteheight
+
+        else:
+            x = 0
+            for col in range(columns):
+                y = 0
+                for row in range(rows):
+                    img = next(imggen, None)
+                    # get canvas if needed
+                    if isinstance(img, Canvas): canvas = img
+                    elif isinstance(img, PIL.Image.Image): canvas = from_image(img)
+                    elif isinstance(img, str): canvas = load(img)
+                    if canvas:
+                        # resize subimg
+                        canvas.resize(pastewidth, pasteheight, lock_ratio=lock_ratio, fit=fit)
+                        # paste
+                        self.paste(canvas, (x,y))
+                    y += pasteheight
+                    
+                x += pastewidth
+
+        return self
+
+    def warp(self, coordconvert, method="near"):
+        # not sure if python has any functions for this
+        # so probably resort to my pure python scripts
+        # with a choice between nearest neighbour, bilinear, and idw algorithms
+        self.drawer.flush()
+
+        # create old vs new warped coords
+        # NOTE: assumes and requires coordsys to be rectilinear,
+        # ie same xs at all ys and same ys at all xs, ie no rotation or skew
+        # ie only converts top row of xs and first column on ys
+        # maybe add a check?
         # ...
-        pass
+        oldxs = [self.pixel2coord(x,0)[0] for x in range(self.width)]
+        oldys = [self.pixel2coord(0,y)[1] for y in range(self.height)]
+##        newxs = [coordconvert(x,0)[0] for x in oldxs]
+##        newys = [coordconvert(0,y)[1] for y in oldys]
+        newxs = []
+        newys = []
+        for y in oldys:
+            for x in oldxs:
+                newx,newy = coordconvert(x,y)
+                newys.append(newy)
+                newxs.append(newx)
+
+        # interpolate each band
+        bands = []
+        for band in self.img.split():
+            # get grid
+            grid = []
+            flat = list(band.getdata())
+            for i in range(0, len(flat), self.width):
+                grid.append( flat[i:i+self.width] )
+            # interp
+            if method == "near":
+                grid = gridinterp.gridinterp_near(grid, oldxs, oldys, newxs, newys)
+            elif method == "bilinear":
+                grid = gridinterp.gridinterp_bilin(grid, oldxs, oldys, newxs, newys)
+            # flatten and put into new img
+            flat = [val for row in grid for val in row]
+            band.putdata(flat)
+            bands.append(band)
+
+        # merge bands back together
+        self.img = PIL.Image.merge(self.img.mode, bands)
+        self.update_drawer_img()
+
+    def draw_axis(self, axis, minval, maxval, intercept, tickinterval,
+                  tickfunc=None, tickoptions={"fillsize":"0.4%min"},
+                  ticklabelformat=None, ticklabeloptions={}, **kwargs):
+        # ONLY BASIC SO FAR...
+        xleft,ytop,xright,ybottom = self.coordspace_bbox
+        xs = (xleft,xright)
+        ys = (ytop,ybottom)
+        xmin,xmax = min(xs),max(xs)
+        ymin,ymax = min(ys),max(ys)
+        
+        if "fillsize" not in kwargs:
+            kwargs["fillsize"] = "1px"
+        if not tickfunc:
+            tickfunc = self.draw_box
+        if not ticklabelformat:
+            ticklabelformat = str
+        
+        if axis == "x":
+            _ticklabeloptions = {"anchor":"s"}
+            _ticklabeloptions.update(ticklabeloptions)
+            self.draw_line([(minval,intercept),(maxval,intercept)], **kwargs)
+            for x in _floatrange(minval, maxval+tickinterval, tickinterval):
+                tickfunc((x,intercept), **tickoptions)
+                lbl = ticklabelformat(x)
+                self.draw_text(lbl, (x,intercept), **_ticklabeloptions)
+        elif axis == "y":
+            _ticklabeloptions = {"anchor":"e"}
+            _ticklabeloptions.update(ticklabeloptions)
+            self.draw_line([(intercept,minval),(intercept,maxval)], **kwargs)
+            for y in _floatrange(minval, maxval+tickinterval, tickinterval):
+                tickfunc((intercept,y), **tickoptions)
+                lbl = ticklabelformat(y)
+                self.draw_text(lbl, (intercept,y), **_ticklabeloptions)
 
 ##    def insert_graph(self, image, bbox, xaxis, yaxis):
 ##        # maybe by creating and drawing on images as subplots,
@@ -761,15 +914,6 @@ class Canvas:
 ##        # own coordinate axes if specified and then paste themself.
 ##        # ... 
 ##        pass
-
-    def paste_grid(self):
-        pass
-
-    def warp(self, oldxs, oldys, newxs, newys, method):
-        # not sure if python has any functions for this
-        # so probably resort to my pure python scripts
-        # with a choice between nearest neighbour, bilinear, and idw algorithms
-        pass
 
     ###############################
     
@@ -1356,7 +1500,7 @@ class Canvas:
             
         self.drawer.path((0,0), path, *args)
 
-    def draw_text(self, text, xy=None, bbox=None, **options):
+    def draw_text(self, text, xy=None, bbox=None, rotate=None, **options):
         """
         Draws basic text.
 
@@ -1370,7 +1514,7 @@ class Canvas:
         - *options* (optional): Keyword args dictionary of text styling options.
             This includes the usual fillcolor/size and outlinecolor/width and some
             additional ones.
-            Font is used with the xt argument and can be the name, filename, or filepath of a font. 
+            Font is used with the xy argument and can be the name, filename, or filepath of a font. 
             Anchor is used with the xy argument and can be any compass direction n,ne,e,se,s,sw,w,nw, or center.
             Justify is used with the bbox argument and can be any left,right,center direction.
             Padx is used with the bbox argument or when using xy with fillcolor or outlinecolor and specifies the percent x padding between the text and the box.
@@ -1385,7 +1529,7 @@ class Canvas:
             fontlocation = fonthelper.get_fontpath(options["font"])
 
             # PIL doesnt support transforms, so must get the pixel coords of the coordinate
-            x,y = self.coord2pixel(x,y)
+            x,y = xorig,yorig = self.coord2pixel(x,y)
             
             # get font dimensions
             font = PIL.ImageFont.truetype(fontlocation, size=options["textsize"]) #, opacity=options["textopacity"])
@@ -1456,9 +1600,36 @@ class Canvas:
                 self.draw_box(bbox=bbox, **bboxoptions)
 
             # then draw text
-            PIL_drawer = PIL.ImageDraw.Draw(self.img)
-            self.drawer.flush()
-            PIL_drawer.text((x,y), text, fill=options["textcolor"], font=font)
+            if rotate:
+                # write and rotate separate img
+                txt_img = PIL.Image.new('RGBA', font.getsize(text))
+                PIL_drawer = PIL.ImageDraw.Draw(txt_img)
+                PIL_drawer.text((0,0), text, fill=options["textcolor"], font=font)
+                txt_img = txt_img.rotate(rotate, PIL.Image.BILINEAR, expand=1)
+                # update to post-rotate anchor
+                fontwidth,fontheight = txt_img.size
+                x,y = xorig,yorig
+                if textanchor == "center":
+                    x = int(x - fontwidth/2.0)
+                    y = int(y - fontheight/2.0)
+                else:
+                    x = int(x - fontwidth/2.0)
+                    y = int(y - fontheight/2.0)
+                    if "n" in textanchor:
+                        y = int(y + fontheight/2.0)
+                    elif "s" in textanchor:
+                        y = int(y - fontheight/2.0)
+                    if "e" in textanchor:
+                        x = int(x - fontwidth/2.0)
+                    elif "w" in textanchor:
+                        x = int(x + fontwidth/2.0)
+                # paste into main
+                self.drawer.flush()
+                self.img.paste(txt_img, (x,y), txt_img)
+            else:
+                PIL_drawer = PIL.ImageDraw.Draw(self.img)
+                self.drawer.flush()
+                PIL_drawer.text((x,y), text, fill=options["textcolor"], font=font)
 
         elif bbox:
             # dynamically decides optimal font size and wrap length
