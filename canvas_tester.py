@@ -86,6 +86,8 @@ def test_text():
 
     # draw rotated text
     canvas.draw_text("Rotated", (100,50), textcolor="black", textsize=32, rotate=15)
+    canvas.color_remap([(222,0,0),(222,222,0),(0,222,0),(0,222,222),(0,0,222)])
+    canvas.view()
 
     #canvas.rotate(45)
     #canvas.crop(14,54,55,81)

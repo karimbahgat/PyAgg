@@ -196,6 +196,15 @@ class Canvas:
         self.ppi = ppi
         # by default, interpret all sizes in % of width
         self.default_unit = "%w"
+        # and baseline textsize as 8 for every 97 inch of ppi
+        self.default_textoptions = {"font":"Calibri",
+                                    "textcolor":(0,0,0),
+                                    "textsize":int(round(8 * (self.ppi / 97.0))),
+                                    "anchor":"center", "justify":"center"}
+        # maybe also have default general drawingoptions
+        # ...
+        # maybe also have default colorcycle
+        # ...
         # by default, interpret all coordinates in pixel space
         self.pixel_space()
 
@@ -401,6 +410,7 @@ class Canvas:
         # by converting pixels to coord distances
         def pixel2coord_dist(x, y):
             # SHOULD BE REMOVED, NEED INSTEAD A PIXEL TO COORDINATE UNIT CONVERTER (units.py is only coords 2 pixel)?
+            # Added units.px_to_coord() so maybe try that...
             # partly taken from Sean Gillies "affine.py"
             a,b,c,d,e,f = self.coordspace_transform
             det = a*e - b*d
@@ -717,7 +727,70 @@ class Canvas:
         self.img = result
         self.update_drawer_img()
         return self
+
+    def color_remap(self, gradient):
+        # convert to grayscale and recolor based on input gradient
+        # experimental...
+        self.drawer.flush()
+
+        # interpolate gradient
+        # http://bsou.io/posts/color-gradients-with-python
         
+        def linear_gradient(fromrgb, torgb, n=10):
+            ''' returns a gradient list of (n) colors between
+            two hex colors. start_hex and finish_hex
+            should be the full six-digit color string,
+            inlcuding the number sign ("#FFFFFF") '''
+            # Starting and ending colors in RGB form
+            s = fromrgb
+            f = torgb
+            # Initilize a list of the output colors with the starting color
+            RGB_list = [s]
+            # Calcuate a color at each evenly spaced value of t from 1 to n
+            for t in range(1, n):
+            # Interpolate RGB vector for color at the current value of t
+                curr_vector = [
+                int(s[j] + (float(t)/(n-1))*(f[j]-s[j]))
+                for j in range(3)
+                ]
+                # Add it to our list of output colors
+                RGB_list.append(curr_vector)
+            return RGB_list
+
+        def polylinear_gradient(colors, n):
+            ''' returns a list of colors forming linear gradients between
+              all sequential pairs of colors. "n" specifies the total
+              number of desired output colors '''
+            # The number of colors per individual linear gradient
+            n_out = int(float(n) / (len(colors) - 1))
+            final_gradient = []
+            # returns dictionary defined by color_dict()
+            prevcolor = colors[0]
+            for nextcolor in colors[1:]:
+                subgrad = linear_gradient(prevcolor, nextcolor, n_out)
+                final_gradient.extend(subgrad[:-1])
+                prevcolor = nextcolor
+            final_gradient.append(nextcolor)
+            return final_gradient
+
+        colors = polylinear_gradient(gradient, 256)
+        # put into palette
+        plt = [spec for rgb in colors for spec in rgb]
+        r,g,b,a = self.img.split()
+        self.img = self.img.convert("L")
+        self.img.putpalette(plt)
+        self.img.putalpha(a)
+        self.img = self.img.convert("RGBA")
+        self.update_drawer_img()
+
+##        self.percent_space()
+##        x = 0
+##        for c in colors:
+##            c = tuple(c)
+##            self.draw_box(xy=(x,20), anchor="w", fillsize=1, fillcolor=c)
+##            x += 1
+            
+        return self
 
 
 
@@ -874,9 +947,12 @@ class Canvas:
         self.img = PIL.Image.merge(self.img.mode, bands)
         self.update_drawer_img()
 
-    def draw_axis(self, axis, minval, maxval, intercept, tickinterval,
+    def draw_axis(self, axis, minval, maxval, intercept,
+                  tickinterval=None, ticknum=5,
                   tickfunc=None, tickoptions={"fillsize":"0.4%min"},
-                  ticklabelformat=None, ticklabeloptions={}, **kwargs):
+                  ticklabelformat=None, ticklabeloptions={},
+                  noticks=False, noticklabels=False,
+                  **kwargs):
         # ONLY BASIC SO FAR...
         xleft,ytop,xright,ybottom = self.coordspace_bbox
         xs = (xleft,xright)
@@ -889,24 +965,47 @@ class Canvas:
         if not tickfunc:
             tickfunc = self.draw_box
         if not ticklabelformat:
-            ticklabelformat = str
-        
+            if axis == "x":
+                valrange = xmax - xmin
+            elif axis == "y":
+                valrange = ymax - ymin
+            if valrange < 1:
+                ticklabelformat = ".6f"
+            elif valrange < 10:
+                ticklabelformat = ".1f"
+            else:
+                ticklabelformat = ".0f"
+        if isinstance(ticklabelformat, str):
+            _frmt = ticklabelformat
+            ticklabelformat = lambda s: format(s, _frmt)
+        if not tickinterval:
+            if ticknum:
+                if axis == "x": valuerange = xmax-xmin
+                elif axis == "y": valuerange = ymax-ymin
+                tickinterval = valuerange / float(ticknum)
+            else:
+                raise Exception("either tickinterval or ticknum must be specified")
+            
         if axis == "x":
-            _ticklabeloptions = {"anchor":"s"}
+            _ticklabeloptions = {"anchor":"n"}
             _ticklabeloptions.update(ticklabeloptions)
             self.draw_line([(minval,intercept),(maxval,intercept)], **kwargs)
             for x in _floatrange(minval, maxval+tickinterval, tickinterval):
-                tickfunc((x,intercept), **tickoptions)
-                lbl = ticklabelformat(x)
-                self.draw_text(lbl, (x,intercept), **_ticklabeloptions)
+                if not noticks:
+                    tickfunc((x,intercept), **tickoptions)
+                if not noticklabels:
+                    lbl = ticklabelformat(x)
+                    self.draw_text(lbl, (x,intercept), **_ticklabeloptions)
         elif axis == "y":
             _ticklabeloptions = {"anchor":"e"}
             _ticklabeloptions.update(ticklabeloptions)
             self.draw_line([(intercept,minval),(intercept,maxval)], **kwargs)
             for y in _floatrange(minval, maxval+tickinterval, tickinterval):
-                tickfunc((intercept,y), **tickoptions)
-                lbl = ticklabelformat(y)
-                self.draw_text(lbl, (intercept,y), **_ticklabeloptions)
+                if not noticks:
+                    tickfunc((intercept,y), **tickoptions)
+                if not noticklabels:
+                    lbl = ticklabelformat(y)
+                    self.draw_text(lbl, (intercept,y), **_ticklabeloptions)
 
 ##    def insert_graph(self, image, bbox, xaxis, yaxis):
 ##        # maybe by creating and drawing on images as subplots,
@@ -1194,6 +1293,7 @@ class Canvas:
             Default is percent of width. 
         """
         self.default_unit = unit
+
 
 
 
@@ -2024,54 +2124,18 @@ class Canvas:
         # finish  
         return customoptions
 
-    def _check_text_options(self, customoptions):
+    def _check_text_options(self, customoptions):       
         customoptions = customoptions.copy()
-        #text and font
-        if not customoptions.get("font"):
-            customoptions["font"] = "Arial"
-            
-        # RIGHT NOW, TEXTSIZE IS PERCENT OF IMAGE SIZE, BUT MAYBE USE NORMAL SIZE INSTEAD
-        # see: http://stackoverflow.com/questions/4902198/pil-how-to-scale-text-size-in-relation-to-the-size-of-the-image
+        
+        if "textsize" in customoptions:
+            textsize = customoptions["textsize"]
+            if isinstance(textsize, str) and textsize.endswith("%"):
+                textsize = self.default_textoptions["textsize"] * float(textsize[:-1]) / 100.0
+            customoptions["textsize"] = int(round(textsize))
 
-        if not "textsize" in customoptions:
-            #customoptions["textsize"] = int(round(self.width*0.0055)) #equivalent to textsize 7
-            customoptions["textsize"] = 8
-        else:
-            customoptions["textsize"] = int(round(customoptions["textsize"]))
-            #input is percent textheight of MAPWIDTH
-            #percentheight = customoptions["textsize"]
-            #so first get pixel height
-            #pixelheight = self.width*percentheight
-            #to get textsize
-            #textsize = int(round(pixelheight*0.86))
-            #customoptions["textsize"] = textsize
-        if not "textcolor" in customoptions:
-            customoptions["textcolor"] = (0,0,0)
-##        if not customoptions.get("textopacity"):
-##            customoptions["textopacity"] = 255
-##        if not customoptions.get("texteffect"):
-##            customoptions["texteffect"] = None
-        if not "anchor" in customoptions:
-            customoptions["anchor"] = "center"
-        if not "justify" in customoptions:
-            customoptions["justify"] = "center"
-        #text background box
-##        if not "fillcolor" in customoptions:
-##            customoptions["fillcolor"] = "white"
-##        else:
-##            if not "outlinecolor" in customoptions:
-##                customoptions["outlinecolor"] = (0,0,0)
-##        #if not "fillsize" in customoptions:
-##        #    customoptions["fillsize"] = 1.1 #proportion size of text bounding box
-##        if not "outlinecolor" in customoptions:
-##            customoptions["outlinecolor"] = None
-##        if not "outlinewidth" in customoptions:
-##            customoptions["outlinewidth"] = 1.0 #percent of fill, not of map
-##        if not "fillopacity" in customoptions:
-##            customoptions["fillopacity"] = 0
-##        if not "outlineopacity" in customoptions:
-##            customoptions["outlineopacity"] = 0 
-        return customoptions
+        finaloptions = self.default_textoptions.copy()
+        finaloptions.update(customoptions)
+        return finaloptions
 
 
 

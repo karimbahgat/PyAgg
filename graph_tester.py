@@ -11,7 +11,7 @@ def test_smoothline():
                      smooth=True,
                      fillcolor=(222,0,0),
                      fillsize=2)
-    canvas.draw_text("Hello", (50,50), textfont="segoe print bold", textsize=55)
+    canvas.draw_text("Hello", (50,50), textfont="segoe print bold", textsize=55)    
     return canvas
 
 def test_histogram():
@@ -20,26 +20,26 @@ def test_histogram():
                                   bins=10,
                                   fillcolor=(0,88,255),
                                   outlinecolor=(222,222,0),
-                                  outlinewidth=2)
-    return graph.draw(1000, 500)
+                                  outlinewidth="2%min")
+    return graph.draw()
 
 def test_barchart():
     barlabels = range(10)
-    bars = [random.randrange(-20,40) for _ in barlabels]
+    barvalues = [random.randrange(-20,40) for _ in barlabels]
     graph = pyagg.graph.BarChart()
     graph.add_category("random bars",
                        barlabels=barlabels,
-                       bars=bars,
+                       barvalues=barvalues,
                         fillcolor=(222,222,0),
                         outlinecolor=(222,0,222),
-                       outlinewidth=2)
+                       outlinewidth="2%min")
 ##    bars2 = [random.randrange(-20,40) for _ in barlabels]
 ##    graph.add_category("random bars2",
 ##                       barlabels=barlabels,
 ##                       bars=bars2,
 ##                        fillcolor=(222,0,0),
 ##                        outlinecolor=(0,0,222))
-    return graph.draw(1000, 500)
+    return graph.draw()
 
 def test_piechart():
     name_values = [(nr,nr) for nr in range(1,15)]
@@ -49,10 +49,8 @@ def test_piechart():
                            value=value,
                             fillcolor=tuple(random.randrange(255) for _ in range(3)),
                             fillsize="40%min",
-                           outlinewidth=1,
-                           textsize=38,
-                           textfont="segoe ui")
-    return graph.draw(1500, 1000, background=(22,22,22))
+                           outlinewidth="0.5%w")
+    return graph.draw()
 
 def test_linegraph():
     xs = range(100)
@@ -80,7 +78,7 @@ def test_linegraph():
                         fillcolor=(0,222,0),
                         outlinecolor=(0,0,222),
                        fillsize=1.5)
-    return graph.draw(1000, 500)
+    return graph.draw()
 
 def test_scatterplot():
     xs = range(1000)
@@ -102,7 +100,7 @@ def test_scatterplot():
                         fillcolor=(0,222,0),
                         outlinecolor=(222,111,0),
                        outlinewidth=0.4)
-    return graph.draw(1000, 500)
+    return graph.draw()
 
 def test_bubbleplot():
     xs = range(1000)
@@ -116,7 +114,7 @@ def test_bubbleplot():
                         fillcolor=(222,222,0),
                         outlinecolor=(0,222,222),
                         outlinewidth=0.4)
-    return graph.draw(1000, 500)
+    return graph.draw()
 
 
 
