@@ -125,36 +125,53 @@ def test_text():
 
     #############################
     # some geo proj experiments
-    import pyproj
-    _from = pyproj.Proj("+init=EPSG:4326")
-    _to = pyproj.Proj("+proj=robin +lon_0=0 +lat_0=0")
+##    import pyproj
+##    _from = pyproj.Proj("+init=EPSG:4326")
+##    #_to = pyproj.Proj("+proj=robin")
+##    #_to = pyproj.Proj("+proj=geos +h=10000000")
+##    _to = pyproj.Proj("+proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0 +k=1.0 +units=m +no_defs")
+##    
+##    # draw axes
+##    xs,_ = pyproj.transform(_from, _to, [-179,179], [0,0])
+##    xleft,xright = xs
+##    _,ys = pyproj.transform(_from, _to, [0,0], [89,-89])
+##    ytop,ybottom = ys
+##    print xs,ys,xleft,ytop,xright,ybottom
+##    canvas.custom_space(xleft,ytop,xright,ybottom)
+##    canvas.zoom_out(1.2)
+##    canvas.draw_axis("x", xleft, xright, ybottom, ticknum=10, ticklabeloptions={"rotate":45,"anchor":"ne"})
+##    canvas.draw_axis("y", ytop, ybottom, xleft, ticknum=10)
+##
+##    # try warp entire image to a curved geo proj
+##    # should work (but maybe not since doesnt account for coord differences
+##    # inside the coordsys except on the edges...?), but so far not working
+##    def convfunc(x,y):
+##        try:
+##            xs,ys = pyproj.transform(_from, _to, [x], [y])
+##            newpoint = xs[0],ys[0]
+##            #if y < -88: print "yes",x,y,newpoint
+##        except:
+##            newpoint = (x,y) # bad hack
+##            # actually, very bad, potentially conaminates and messes up coordys orientation algorithm
+##            #print "warning, hack, shouldnt happen",newpoint
+##        if newpoint[0] in (float("inf"),float("nan")) or newpoint[1] in (float("inf"),float("nan")):
+##            newpoint = (x,y) # bad hack
+##        return newpoint
+##    canvas = pyagg.load("C:/Users/kimo/Desktop/world.png").resize(300,150)
+##    canvas.custom_space(-179.9,89.9,179.9,-89.9) #geographic_space() # no, bc keeps aspect ratio and thus goes out of bounds
+##    canvas.warp(convfunc)
     
-    # draw axes
-    xs,_ = pyproj.transform(_from, _to, [-179,179], [0,0])
-    xleft,xright = xs
-    _,ys = pyproj.transform(_from, _to, [0,0], [-89,89])
-    ytop,ybottom = ys
-    print xs,ys,xleft,ytop,xright,ybottom
-    canvas.custom_space(xleft,ytop,xright,ybottom)
-    canvas.zoom_out(1.2)
-    canvas.draw_axis("x", xleft, xright, ybottom, 1000000, ticklabeloptions={"rotate":45,"anchor":"ne"})
-    canvas.draw_axis("y", ytop, ybottom, xleft, 1000000)
-
-    # try warp entire image to a curved geo proj
-    # should work (but maybe not since doesnt account for coord differences
-    # inside the coordsys except on the edges...?), but so far not working
-    def convfunc(x,y):
-        try:
-            xs,ys = pyproj.transform(_from, _to, [x], [y])
-            newpoint = xs[0],ys[0]
-            #print "yes",newpoint
-        except:
-            newpoint = (x,y) # bad hack
-            print "hack",newpoint
-        return newpoint
-    canvas = pyagg.load("C:/Users/kimo/Desktop/world.gif")
-    canvas.custom_space(-180,90,180,-90) #geographic_space() # no, bc keeps aspect ratio and thus goes out of bounds
-    canvas.warp(convfunc)
+##    import sys
+##    sys.path.append("C:\Users\kimo\Documents\GitHub\PyCountries")
+##    import pycountries as pc
+##    canvas.custom_space(xleft,ytop,xright,ybottom)
+##    for cntr in pc.Continent("Africa"):
+##        try:
+##            geoj = cntr.__geo_interface__
+##            if geoj["type"] == "Polygon":
+##                geoj["coordinates"][0] = [convfunc(*xy) for xy in geoj["coordinates"][0]]
+##                canvas.draw_polygon(geoj["coordinates"][0], fillcolor="yellow")
+##        except: pass
 
     # geo proj transform grid lines
     # draw longitude lines to be curved

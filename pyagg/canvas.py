@@ -901,51 +901,51 @@ class Canvas:
 
         return self
 
-    def warp(self, coordconvert, method="near"):
-        # not sure if python has any functions for this
-        # so probably resort to my pure python scripts
-        # with a choice between nearest neighbour, bilinear, and idw algorithms
-        self.drawer.flush()
-
-        # create old vs new warped coords
-        # NOTE: assumes and requires coordsys to be rectilinear,
-        # ie same xs at all ys and same ys at all xs, ie no rotation or skew
-        # ie only converts top row of xs and first column on ys
-        # maybe add a check?
-        # ...
-        oldxs = [self.pixel2coord(x,0)[0] for x in range(self.width)]
-        oldys = [self.pixel2coord(0,y)[1] for y in range(self.height)]
-##        newxs = [coordconvert(x,0)[0] for x in oldxs]
-##        newys = [coordconvert(0,y)[1] for y in oldys]
-        newxs = []
-        newys = []
-        for y in oldys:
-            for x in oldxs:
-                newx,newy = coordconvert(x,y)
-                newys.append(newy)
-                newxs.append(newx)
-
-        # interpolate each band
-        bands = []
-        for band in self.img.split():
-            # get grid
-            grid = []
-            flat = list(band.getdata())
-            for i in range(0, len(flat), self.width):
-                grid.append( flat[i:i+self.width] )
-            # interp
-            if method == "near":
-                grid = gridinterp.gridinterp_near(grid, oldxs, oldys, newxs, newys)
-            elif method == "bilinear":
-                grid = gridinterp.gridinterp_bilin(grid, oldxs, oldys, newxs, newys)
-            # flatten and put into new img
-            flat = [val for row in grid for val in row]
-            band.putdata(flat)
-            bands.append(band)
-
-        # merge bands back together
-        self.img = PIL.Image.merge(self.img.mode, bands)
-        self.update_drawer_img()
+##    def warp(self, coordconvert, method="near"):
+##        # not sure if python has any functions for this
+##        # so probably resort to my pure python scripts
+##        # with a choice between nearest neighbour, bilinear, and idw algorithms
+##        self.drawer.flush()
+##
+##        # create old vs new warped coords
+##        # NOTE: assumes and requires coordsys to be rectilinear,
+##        # ie same xs at all ys and same ys at all xs, ie no rotation or skew
+##        # ie only converts top row of xs and first column on ys
+##        # maybe add a check?
+##        # ...
+##        oldxs = [self.pixel2coord(x,0)[0] for x in range(self.width)]
+##        oldys = [self.pixel2coord(0,y)[1] for y in range(self.height)]
+####        newxs = [coordconvert(x,0)[0] for x in oldxs]
+####        newys = [coordconvert(0,y)[1] for y in oldys]
+##        newxs = []
+##        newys = []
+##        for y in oldys:
+##            for x in oldxs:
+##                newx,newy = coordconvert(x,y)
+##                newys.append(newy)
+##                newxs.append(newx)
+##
+##        # interpolate each band
+##        bands = []
+##        for band in self.img.split():
+##            # get grid
+##            grid = []
+##            flat = list(band.getdata())
+##            for i in range(0, len(flat), self.width):
+##                grid.append( flat[i:i+self.width] )
+##            # interp
+##            if method == "near":
+##                grid = gridinterp.gridinterp_near(grid, oldxs, oldys, newxs, newys)
+##            elif method == "bilinear":
+##                grid = gridinterp.gridinterp_bilin(grid, oldxs, oldys, newxs, newys)
+##            # flatten and put into new img
+##            flat = [val for row in grid for val in row]
+##            band.putdata(flat)
+##            bands.append(band)
+##
+##        # merge bands back together
+##        self.img = PIL.Image.merge(self.img.mode, bands)
+##        self.update_drawer_img()
 
     def draw_axis(self, axis, minval, maxval, intercept,
                   tickinterval=None, ticknum=5,
@@ -991,6 +991,8 @@ class Canvas:
             _ticklabeloptions.update(ticklabeloptions)
             self.draw_line([(minval,intercept),(maxval,intercept)], **kwargs)
             for x in _floatrange(minval, maxval+tickinterval, tickinterval):
+                if x > maxval:
+                    x = maxval
                 if not noticks:
                     tickfunc((x,intercept), **tickoptions)
                 if not noticklabels:
@@ -1001,6 +1003,8 @@ class Canvas:
             _ticklabeloptions.update(ticklabeloptions)
             self.draw_line([(intercept,minval),(intercept,maxval)], **kwargs)
             for y in _floatrange(minval, maxval+tickinterval, tickinterval):
+                if y > maxval:
+                    y = maxval
                 if not noticks:
                     tickfunc((intercept,y), **tickoptions)
                 if not noticklabels:

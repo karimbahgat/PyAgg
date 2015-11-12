@@ -60,8 +60,35 @@ def gridinterp_near(oldgrid, oldxs, oldys, newxs, newys):
     newxmax,newymax = max(newxs),max(newys)
     newwidth = newxmax - newxmin
     newheight = newymax - newymin
+    
+    print "newextremes",newxmin,newymin,newxmax,newymax
+
+    # function for determining correct axis orientation
+    def increases(values):
+        valuegen = (val for val in values if (val or val==0) and val not in (float("Nan"),float("inf"),float("-inf")) )
+        val1,val2 = next(valuegen),next(valuegen)
+        if val1 < val2: return True
+        elif val1 > val2: return False
+        else: raise Exception("Found repeated neighbouring value in sequence, how to deal?")
+
+    # determine correct old axis directions
+    if increases(oldxs): oldxleft,oldxright = oldxmin,oldxmax
+    else: oldxleft,oldxright = oldxmax,oldxmin
+    if increases(oldys): oldytop,oldybottom = oldymin,oldymax
+    else: oldytop,oldybottom = oldymax,oldymin
+
+    print "oldbbox",oldxleft,oldytop,oldxright,oldybottom
 
     if len(newxs) == len(oldxs) and len(newys) == len(oldys):
+        
+        # determine correct new axis directions
+        if increases(newxs): newxleft,newxright = newxmin,newxmax
+        else: newxleft,newxright = newxmax,newxmin
+        if increases(newys): newytop,newybottom = newymin,newymax
+        else: newytop,newybottom = newymax,newymin
+
+        # NOTE: below has not been updated
+        # ...
         
         for rowi, (oldy, newy) in enumerate(zip(oldys, newys)):
             newrow = []
@@ -110,40 +137,67 @@ def gridinterp_near(oldgrid, oldxs, oldys, newxs, newys):
 
     elif len(newxs) == len(oldxs) * len(oldys) and len(newys) == len(oldys) * len(oldxs):
 
+        # determine correct new axis directions
+        for _i in range(len(oldxs)):
+            _rownewxs = newxs[_i*len(oldys):_i*len(oldys)+len(oldxs)]
+            if len(_rownewxs) > 1:
+                if increases(_rownewxs): newxleft,newxright = newxmin,newxmax
+                else: newxleft,newxright = newxmax,newxmin
+                break
+        for _i in range(len(oldys)):
+            _rownewys = newys[_i::len(oldxs)]
+            if len(_rownewys) > 1:
+                if increases(_rownewys): newytop,newybottom = newymin,newymax
+                else: newytop,newybottom = newymax,newymin
+                break
+
+        print "newbbox",newxleft,newytop,newxright,newybottom
+
+        # ...
         newxs = (x for x in newxs)
         newys = (y for y in newys)
 
+        # SORT OF WORKS, BUT NOT WITH MERCATOR, SO PROB NOT TRULY CORRECT...
+        # help: http://www.cs.princeton.edu/courses/archive/spr11/cos426/notes/cos426_s11_lecture03_warping.pdf
+
+        newxincr = newwidth/float(len(oldgrid[0]))
+        newyincr = newheight/float(len(oldgrid))
+        regularnewy = newytop
+
         for rowi,oldy in enumerate(oldys):
+            regularnewx = newxleft
             newrow = []
 
             for coli,oldx in enumerate(oldxs):
 
                 newx = next(newxs)
                 newy = next(newys)
-    
-                # find the closest row
-                newyratio = (newy - newymin) / float(newheight)
-                oldyratio = (oldy - oldymin) / float(oldheight)
-                newrowi = int(round(height*newyratio))
-                oldrowi = int(round(height*oldyratio))
-                rowdiff = newrowi-oldrowi
-                r1 = oldrowi - rowdiff
+
+                # how much the forward mapping of the target cell's oldcoord
+                # ...differed from the expected newcoord at the target cell.
+                newyoffset = regularnewy - newy
+                newxoffset = regularnewx - newx
+
+                newyoffsetratio = newyoffset / float(newheight)
+                newxoffsetratio = newxoffset / float(newwidth)
+
+                # offset the oldcoord by that same amount
+                oldyoffset = oldheight*newyoffsetratio
+                oldxoffset = oldwidth*newxoffsetratio
+
+                oldyratio = ((oldy - oldytop)+oldyoffset) / float(oldheight)
+                oldxratio = ((oldx - oldxleft)+oldxoffset) / float(oldwidth)
+
+                # get the pixel at the same ratio position as the offset oldcoord
+                r1 = int(round(height*oldyratio))
+                c1 = int(round(width*oldxratio))
+
                 # prevent going out of bounds
                 r1 = max((r1,0))
                 r1 = min((r1,len(oldgrid)))
-                #print rowi,newrowi,rowdiff,r1
-                
-                # find the closest column
-                newxratio = (newx - newxmin) / float(newwidth)
-                oldxratio = (oldx - oldxmin) / float(oldwidth)
-                newcoli = int(round(width*newxratio))
-                oldcoli = int(round(width*oldxratio))
-                coldiff = newcoli-oldcoli
-                c1 = oldcoli - coldiff
-                # prevent going out of bounds
                 c1 = max((c1,0))
                 c1 = min((c1,len(oldgrid[0])))
-                #print coli,newcoli,coldiff,c1
+
 
                 # find the old point that is nearest to the newpoint
                 try:
@@ -154,8 +208,76 @@ def gridinterp_near(oldgrid, oldxs, oldys, newxs, newys):
                     val = None
                     
                 newrow.append(val)
+                regularnewx += newxincr
                 
             yield newrow
+            regularnewy += newyincr
+        
+##        for rowi,oldy in enumerate(oldys):
+##            newrow = []
+##
+##            for coli,oldx in enumerate(oldxs):
+##
+##                newx = next(newxs)
+##                newy = next(newys)
+##
+##
+####                # bleh
+####                def to_src_px(pt):
+####                    # linear transform from src_bbox to src_quad
+####                    src_bbox = (xleft,ytop,
+####                    src_quad = 
+####                dst_quad = (coli,rowi)
+####                dst_w = (newx,newy)
+####                src_w = (oldx,oldy)
+####                src_quad = to_src_px(src_w)
+##
+##                
+##    
+##                # find the closest row
+##                newyratio = (newy - newytop) / float(newybottom-newytop)
+##                oldyratio = (oldy - oldytop) / float(oldybottom-oldytop)
+##                #newrowi = int(round(height*newyratio))
+##                #oldrowi = int(round(height*oldyratio))
+##                #rowdiff = newrowi-oldrowi
+##                #r1 = oldrowi - rowdiff
+##                diffyratio = oldyratio - newyratio
+##                
+##                #new2oldy = oldytop + oldheight * newyratio
+##                #oldyratio = (new2oldy-oldytop) / float(oldwidth)
+##                
+##                r1 = int(round(height*(oldyratio+diffyratio)))
+##                #print "y",oldy,oldyratio,newy,newyratio,diffyratio
+##                #print oldyratio,diffyratio, r1
+##                # prevent going out of bounds
+##                r1 = max((r1,0))
+##                r1 = min((r1,len(oldgrid)))
+##                
+##                # find the closest column
+##                newxratio = (newx - newxleft) / float(newxright-newxleft)
+##                oldxratio = (oldx - oldxleft) / float(oldxright-oldxleft)
+##                #newcoli = int(round(width*newxratio))
+##                #oldcoli = int(round(width*oldxratio))
+##                #coldiff = newcoli-oldcoli
+##                #c1 = oldcoli - coldiff
+##                diffxratio = oldxratio - newxratio
+##                c1 = int(round(width*(oldxratio+diffxratio)))
+##                #print "x",oldx,oldxratio,newx,newxratio,diffxratio
+##                # prevent going out of bounds
+##                c1 = max((c1,0))
+##                c1 = min((c1,len(oldgrid[0])))
+##
+##                # find the old point that is nearest to the newpoint
+##                try:
+##                    val = oldgrid[r1][c1]
+##                    
+##                except IndexError:
+##                    # need better handling, why indexerror?
+##                    val = None
+##                    
+##                newrow.append(val)
+##                
+##            yield newrow
 
     else:
         raise Exception("newcoords must be same length as oldcoords, or each be as long as the entire old grid.")
