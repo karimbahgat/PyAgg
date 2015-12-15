@@ -156,7 +156,7 @@ class Canvas:
         A list of 6 floats representing the affine transform
         coefficients used to transform input coordinates to the drawing coordinate system. 
     """
-    def __init__(self, width, height, background=None, mode="RGBA", ppi=300):
+    def __init__(self, width=None, height=None, background=None, mode="RGBA", ppi=300, preset=None):
         """
         Creates a new blank canvas image. 
 
@@ -182,7 +182,17 @@ class Canvas:
             no effect. This means that if ppi matters to you, you should initiate
             the canvas width and height using real world sizes, and draw all sizes using
             real world sizes as well. Ppi should only be set at initiation time.
+        - *preset* (optional):
+            Automatically sets the width and height options based on a template.
+            Valid values are: "A4"
         """
+        # check preset
+        if not (width and height):
+            if preset:
+                if preset == "A4":
+                    width,height = "210mm","297mm"
+            else:
+                raise Exception("Canvas must be initiated with a width and height, or using the preset option")
         # unless specified, interpret width and height as pixels
         width = units.parse_dist(width, default_unit="px", ppi=ppi)
         height = units.parse_dist(height, default_unit="px", ppi=ppi)
@@ -867,15 +877,16 @@ class Canvas:
                 x = 0
                 for col in range(columns):
                     img = next(imggen, None)
-                    # get canvas if needed
-                    if isinstance(img, Canvas): canvas = img
-                    elif isinstance(img, PIL.Image.Image): canvas = from_image(img)
-                    elif isinstance(img, str): canvas = load(img)
-                    if canvas:
-                        # resize subimg
-                        canvas.resize(pastewidth, pasteheight, lock_ratio=lock_ratio, fit=fit)
-                        # paste
-                        self.paste(canvas, (x,y))
+                    if img:
+                        # get canvas if needed
+                        if isinstance(img, Canvas): canvas = img
+                        elif isinstance(img, PIL.Image.Image): canvas = from_image(img)
+                        elif isinstance(img, str): canvas = load(img)
+                        if canvas:
+                            # resize subimg
+                            canvas.resize(pastewidth, pasteheight, lock_ratio=lock_ratio, fit=fit)
+                            # paste
+                            self.paste(canvas, (x,y))
                     x += pastewidth
                     
                 y += pasteheight
@@ -886,15 +897,16 @@ class Canvas:
                 y = 0
                 for row in range(rows):
                     img = next(imggen, None)
-                    # get canvas if needed
-                    if isinstance(img, Canvas): canvas = img
-                    elif isinstance(img, PIL.Image.Image): canvas = from_image(img)
-                    elif isinstance(img, str): canvas = load(img)
-                    if canvas:
-                        # resize subimg
-                        canvas.resize(pastewidth, pasteheight, lock_ratio=lock_ratio, fit=fit)
-                        # paste
-                        self.paste(canvas, (x,y))
+                    if img:
+                        # get canvas if needed
+                        if isinstance(img, Canvas): canvas = img
+                        elif isinstance(img, PIL.Image.Image): canvas = from_image(img)
+                        elif isinstance(img, str): canvas = load(img)
+                        if canvas:
+                            # resize subimg
+                            canvas.resize(pastewidth, pasteheight, lock_ratio=lock_ratio, fit=fit)
+                            # paste
+                            self.paste(canvas, (x,y))
                     y += pasteheight
                     
                 x += pastewidth
