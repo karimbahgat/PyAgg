@@ -22,6 +22,7 @@ import traceback
 import warnings
 import textwrap
 import math
+import gc # garbage collection
 
 # Import submodules
 PYAGGFOLDER = os.path.split(__file__)[0]
@@ -186,37 +187,73 @@ class Canvas:
             Automatically sets the width and height options based on a template.
             Valid values are: "A4"
         """
-        # check preset
+        # maybe use image size preset
         if not (width and height):
             if preset:
                 if preset == "A4":
                     width,height = "210mm","297mm"
             else:
                 raise Exception("Canvas must be initiated with a width and height, or using the preset option")
+
         # unless specified, interpret width and height as pixels
         width = units.parse_dist(width, default_unit="px", ppi=ppi)
         height = units.parse_dist(height, default_unit="px", ppi=ppi)
         width,height = int(round(width)),int(round(height))
+
+        # "none" as background opens up for random noise and contamination from previous images still in memory
+        # so override with default backgrounds
+        if not background:
+            if mode == "RGBA":
+                background = (255,255,255,0)
+            elif mode == "RGB":
+                background = (255,255,255)
+
         # create image
+        gc.collect()  # free up memory and avoid noise from previous images
         self.img = PIL.Image.new(mode, (width, height), background)
+
         # create drawer
         self.drawer = aggdraw.Draw(self.img)
+
         # remember info
         self.background = background
         self.ppi = ppi
+
         # by default, interpret all sizes in % of width
         self.default_unit = "%w"
+
         # and baseline textsize as 8 for every 97 inch of ppi
         self.default_textoptions = {"font":"Calibri",
                                     "textcolor":(0,0,0),
                                     "textsize":int(round(8 * (self.ppi / 97.0))),
                                     "anchor":"center", "justify":"center"}
+
         # maybe also have default general drawingoptions
         # ...
+
         # maybe also have default colorcycle
         # ...
+
         # by default, interpret all coordinates in pixel space
         self.pixel_space()
+
+    def __del__(self):
+        del self.img
+        del self.drawer
+        del self
+        gc.collect()
+
+    def copy(self):
+        newcanvas = Canvas(100, 100)
+        newcanvas.img = self.img.copy()
+        newcanvas.background = self.background
+        newcanvas.ppi = self.ppi
+        newcanvas.default_unit = self.default_unit
+        newcanvas.default_textoptions = self.default_textoptions
+        newcanvas.coordspace_transform = self.coordspace_transform
+        newcanvas.coordspace_bbox = self.coordspace_bbox
+        newcanvas.update_drawer_img()
+        return newcanvas
 
     @property
     def width(self):
