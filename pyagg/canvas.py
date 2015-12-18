@@ -563,6 +563,10 @@ class Canvas:
             xy = (x,y)
             bbox = [x,y,x+width,y+height]
 
+            # NOTE: potential bug here if opposite axis directions
+            # which happes when drawing the outline below
+            # ...
+
         ###
         if image.mode == "RGBA":
             self.img.paste(image, xy, image) # paste using self as transparency mask
@@ -839,6 +843,65 @@ class Canvas:
             
         return self
 
+    def draw_gradient(self, line, gradient, width, steps=100):
+        
+        def linear_gradient(fromrgb, torgb, n=10):
+            ''' returns a gradient list of (n) colors between
+            two hex colors. start_hex and finish_hex
+            should be the full six-digit color string,
+            inlcuding the number sign ("#FFFFFF") '''
+            # Starting and ending colors in RGB form
+            s = fromrgb
+            f = torgb
+            # Initilize a list of the output colors with the starting color
+            RGB_list = [s]
+            # Calcuate a color at each evenly spaced value of t from 1 to n
+            for t in range(1, n):
+            # Interpolate RGB vector for color at the current value of t
+                curr_vector = [
+                int(s[j] + (float(t)/(n-1))*(f[j]-s[j]))
+                for j in range(3)
+                ]
+                # Add it to our list of output colors
+                RGB_list.append(curr_vector)
+            return RGB_list
+
+        def polylinear_gradient(colors, n):
+            ''' returns a list of colors forming linear gradients between
+              all sequential pairs of colors. "n" specifies the total
+              number of desired output colors '''
+            # The number of colors per individual linear gradient
+            n_out = int(float(n) / (len(colors) - 1))
+            final_gradient = []
+            # returns dictionary defined by color_dict()
+            prevcolor = colors[0]
+            for nextcolor in colors[1:]:
+                subgrad = linear_gradient(prevcolor, nextcolor, n_out)
+                final_gradient.extend(subgrad[:-1])
+                prevcolor = nextcolor
+            final_gradient.append(nextcolor)
+            return final_gradient
+
+        halfwidth = width/2.0
+        p1,p2 = line
+        dirvec = p2[0]-p1[0], p2[1]-p1[1]
+        magni = math.hypot(*dirvec)
+        relmagni = width / float(magni)
+        perpvec = dirvec[1]*relmagni, -dirvec[0]*relmagni
+
+        colors = (col for col in polylinear_gradient(gradient, steps))
+        xincr = dirvec[0]/float(steps)
+        yincr = dirvec[1]/float(steps)
+        incrlength = math.hypot(xincr,yincr)
+        cur = p1
+        for step in range(steps):
+            left = cur[0]-perpvec[0], cur[1]-perpvec[1]
+            right = cur[0]+perpvec[0], cur[1]+perpvec[1]
+            col = tuple(next(colors))
+            self.draw_line([left,right], fillcolor=col, fillsize=incrlength)
+            cur = cur[0]+xincr, cur[1]+yincr
+            
+        
 
 
 
