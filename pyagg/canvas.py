@@ -2121,9 +2121,14 @@ class Canvas:
         
         # colors
         if customoptions.get("fillcolor", "not specified") == "not specified":
-            customoptions["fillcolor"] = [random.randrange(0,255) for _ in xrange(3)]
+            customoptions["fillcolor"] = tuple([random.randrange(0,255) for _ in xrange(3)])
         if customoptions.get("outlinecolor", "not specified") == "not specified":
             customoptions["outlinecolor"] = (0,0,0)
+            
+        if isinstance(customoptions["fillcolor"], (tuple,list)):
+            customoptions["fillcolor"] = tuple(map(int,customoptions["fillcolor"]))
+        if isinstance(customoptions["outlinecolor"], (tuple,list)):
+            customoptions["outlinecolor"] = tuple(map(int,customoptions["outlinecolor"]))
             
         # finish  
         return customoptions
