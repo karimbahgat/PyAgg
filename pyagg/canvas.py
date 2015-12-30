@@ -438,7 +438,7 @@ class Canvas:
         self.update_drawer_img()
         return self
 
-    def paste(self, image, xy=(0,0), bbox=None, lock_ratio=True, fit=True, anchor="nw", outlinewidth="1px", outlinecolor="black"):
+    def paste(self, image, xy=(0,0), bbox=None, lock_ratio=True, fit=True, anchor="nw", outlinewidth=None, outlinecolor="black"):
         """
         Paste a PIL image or PyAgg canvas
         onto a given location in the Canvas.
