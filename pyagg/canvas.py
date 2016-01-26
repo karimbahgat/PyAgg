@@ -22,6 +22,7 @@ import traceback
 import warnings
 import textwrap
 import math
+import gc # garbage collection
 
 # Import submodules
 PYAGGFOLDER = os.path.split(__file__)[0]
@@ -156,7 +157,7 @@ class Canvas:
         A list of 6 floats representing the affine transform
         coefficients used to transform input coordinates to the drawing coordinate system. 
     """
-    def __init__(self, width, height, background=None, mode="RGBA", ppi=300):
+    def __init__(self, width=None, height=None, background=None, mode="RGBA", ppi=300, preset=None):
         """
         Creates a new blank canvas image. 
 
@@ -182,31 +183,77 @@ class Canvas:
             no effect. This means that if ppi matters to you, you should initiate
             the canvas width and height using real world sizes, and draw all sizes using
             real world sizes as well. Ppi should only be set at initiation time.
+        - *preset* (optional):
+            Automatically sets the width and height options based on a template.
+            Valid values are: "A4"
         """
+        # maybe use image size preset
+        if not (width and height):
+            if preset:
+                if preset == "A4":
+                    width,height = "210mm","297mm"
+            else:
+                raise Exception("Canvas must be initiated with a width and height, or using the preset option")
+
         # unless specified, interpret width and height as pixels
         width = units.parse_dist(width, default_unit="px", ppi=ppi)
         height = units.parse_dist(height, default_unit="px", ppi=ppi)
         width,height = int(round(width)),int(round(height))
+
+        # "none" as background opens up for random noise and contamination from previous images still in memory
+        # so override with default backgrounds
+        if not background:
+            if mode == "RGBA":
+                background = (255,255,255,0)
+            elif mode == "RGB":
+                background = (255,255,255)
+
         # create image
+        gc.collect()  # free up memory and avoid noise from previous images
         self.img = PIL.Image.new(mode, (width, height), background)
+
         # create drawer
         self.drawer = aggdraw.Draw(self.img)
+
         # remember info
         self.background = background
         self.ppi = ppi
+
         # by default, interpret all sizes in % of width
         self.default_unit = "%w"
+
         # and baseline textsize as 8 for every 97 inch of ppi
         self.default_textoptions = {"font":"Calibri",
                                     "textcolor":(0,0,0),
                                     "textsize":int(round(8 * (self.ppi / 97.0))),
                                     "anchor":"center", "justify":"center"}
+
         # maybe also have default general drawingoptions
         # ...
+
         # maybe also have default colorcycle
         # ...
+
         # by default, interpret all coordinates in pixel space
         self.pixel_space()
+
+    def __del__(self):
+        del self.img
+        del self.drawer
+        del self
+        gc.collect()
+
+    def copy(self):
+        newcanvas = Canvas(100, 100)
+        newcanvas.img = self.img.copy()
+        newcanvas.background = self.background
+        newcanvas.ppi = self.ppi
+        newcanvas.default_unit = self.default_unit
+        newcanvas.default_textoptions = self.default_textoptions
+        newcanvas.coordspace_transform = self.coordspace_transform
+        newcanvas.coordspace_bbox = self.coordspace_bbox
+        newcanvas.update_drawer_img()
+        return newcanvas
 
     @property
     def width(self):
@@ -438,7 +485,7 @@ class Canvas:
         self.update_drawer_img()
         return self
 
-    def paste(self, image, xy=(0,0), bbox=None, lock_ratio=True, fit=True, anchor="nw", outlinewidth=None, outlinecolor="black"):
+    def paste(self, image, xy=(0,0), bbox=None, lock_ratio=True, fit=True, anchor="nw", outlinewidth="1px", outlinecolor="black"):
         """
         Paste a PIL image or PyAgg canvas
         onto a given location in the Canvas.
@@ -515,6 +562,10 @@ class Canvas:
                     x = int(x + width/2.0)
             xy = (x,y)
             bbox = [x,y,x+width,y+height]
+
+            # NOTE: potential bug here if opposite axis directions
+            # which happes when drawing the outline below
+            # ...
 
         ###
         if image.mode == "RGBA":
@@ -792,6 +843,65 @@ class Canvas:
             
         return self
 
+    def draw_gradient(self, line, gradient, width, steps=100):
+        
+        def linear_gradient(fromrgb, torgb, n=10):
+            ''' returns a gradient list of (n) colors between
+            two hex colors. start_hex and finish_hex
+            should be the full six-digit color string,
+            inlcuding the number sign ("#FFFFFF") '''
+            # Starting and ending colors in RGB form
+            s = fromrgb
+            f = torgb
+            # Initilize a list of the output colors with the starting color
+            RGB_list = [s]
+            # Calcuate a color at each evenly spaced value of t from 1 to n
+            for t in range(1, n):
+            # Interpolate RGB vector for color at the current value of t
+                curr_vector = [
+                int(s[j] + (float(t)/(n-1))*(f[j]-s[j]))
+                for j in range(3)
+                ]
+                # Add it to our list of output colors
+                RGB_list.append(curr_vector)
+            return RGB_list
+
+        def polylinear_gradient(colors, n):
+            ''' returns a list of colors forming linear gradients between
+              all sequential pairs of colors. "n" specifies the total
+              number of desired output colors '''
+            # The number of colors per individual linear gradient
+            n_out = int(float(n) / (len(colors) - 1))
+            final_gradient = []
+            # returns dictionary defined by color_dict()
+            prevcolor = colors[0]
+            for nextcolor in colors[1:]:
+                subgrad = linear_gradient(prevcolor, nextcolor, n_out)
+                final_gradient.extend(subgrad[:-1])
+                prevcolor = nextcolor
+            final_gradient.append(nextcolor)
+            return final_gradient
+
+        halfwidth = width/2.0
+        p1,p2 = line
+        dirvec = p2[0]-p1[0], p2[1]-p1[1]
+        magni = math.hypot(*dirvec)
+        relmagni = width / float(magni)
+        perpvec = dirvec[1]*relmagni, -dirvec[0]*relmagni
+
+        colors = (col for col in polylinear_gradient(gradient, steps))
+        xincr = dirvec[0]/float(steps)
+        yincr = dirvec[1]/float(steps)
+        incrlength = math.hypot(xincr,yincr)
+        cur = p1
+        for step in range(steps):
+            left = cur[0]-perpvec[0], cur[1]-perpvec[1]
+            right = cur[0]+perpvec[0], cur[1]+perpvec[1]
+            col = tuple(next(colors))
+            self.draw_line([left,right], fillcolor=col, fillsize=incrlength)
+            cur = cur[0]+xincr, cur[1]+yincr
+            
+        
 
 
 
@@ -867,15 +977,16 @@ class Canvas:
                 x = 0
                 for col in range(columns):
                     img = next(imggen, None)
-                    # get canvas if needed
-                    if isinstance(img, Canvas): canvas = img
-                    elif isinstance(img, PIL.Image.Image): canvas = from_image(img)
-                    elif isinstance(img, str): canvas = load(img)
-                    if canvas:
-                        # resize subimg
-                        canvas.resize(pastewidth, pasteheight, lock_ratio=lock_ratio, fit=fit)
-                        # paste
-                        self.paste(canvas, (x,y))
+                    if img:
+                        # get canvas if needed
+                        if isinstance(img, Canvas): canvas = img
+                        elif isinstance(img, PIL.Image.Image): canvas = from_image(img)
+                        elif isinstance(img, str): canvas = load(img)
+                        if canvas:
+                            # resize subimg
+                            canvas.resize(pastewidth, pasteheight, lock_ratio=lock_ratio, fit=fit)
+                            # paste
+                            self.paste(canvas, (x,y))
                     x += pastewidth
                     
                 y += pasteheight
@@ -886,15 +997,16 @@ class Canvas:
                 y = 0
                 for row in range(rows):
                     img = next(imggen, None)
-                    # get canvas if needed
-                    if isinstance(img, Canvas): canvas = img
-                    elif isinstance(img, PIL.Image.Image): canvas = from_image(img)
-                    elif isinstance(img, str): canvas = load(img)
-                    if canvas:
-                        # resize subimg
-                        canvas.resize(pastewidth, pasteheight, lock_ratio=lock_ratio, fit=fit)
-                        # paste
-                        self.paste(canvas, (x,y))
+                    if img:
+                        # get canvas if needed
+                        if isinstance(img, Canvas): canvas = img
+                        elif isinstance(img, PIL.Image.Image): canvas = from_image(img)
+                        elif isinstance(img, str): canvas = load(img)
+                        if canvas:
+                            # resize subimg
+                            canvas.resize(pastewidth, pasteheight, lock_ratio=lock_ratio, fit=fit)
+                            # paste
+                            self.paste(canvas, (x,y))
                     y += pasteheight
                     
                 x += pastewidth
@@ -2121,14 +2233,9 @@ class Canvas:
         
         # colors
         if customoptions.get("fillcolor", "not specified") == "not specified":
-            customoptions["fillcolor"] = tuple([random.randrange(0,255) for _ in xrange(3)])
+            customoptions["fillcolor"] = [random.randrange(0,255) for _ in xrange(3)]
         if customoptions.get("outlinecolor", "not specified") == "not specified":
             customoptions["outlinecolor"] = (0,0,0)
-            
-        if isinstance(customoptions["fillcolor"], (tuple,list)):
-            customoptions["fillcolor"] = tuple(map(int,customoptions["fillcolor"]))
-        if isinstance(customoptions["outlinecolor"], (tuple,list)):
-            customoptions["outlinecolor"] = tuple(map(int,customoptions["outlinecolor"]))
             
         # finish  
         return customoptions
