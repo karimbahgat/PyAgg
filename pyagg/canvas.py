@@ -485,7 +485,7 @@ class Canvas:
         self.update_drawer_img()
         return self
 
-    def paste(self, image, xy=(0,0), bbox=None, lock_ratio=True, fit=True, anchor="nw", outlinewidth="1px", outlinecolor="black"):
+    def paste(self, image, xy=(0,0), bbox=None, lock_ratio=True, fit=True, anchor="nw", outlinewidth=None, outlinecolor="black"):
         """
         Paste a PIL image or PyAgg canvas
         onto a given location in the Canvas.
@@ -2232,10 +2232,16 @@ class Canvas:
         else: customoptions["outlinewidth"] = units.parse_diststring("0.07%w", ppi=self.ppi, canvassize=[self.width,self.height])
         
         # colors
-        if customoptions.get("fillcolor", "not specified") == "not specified":
-            customoptions["fillcolor"] = [random.randrange(0,255) for _ in xrange(3)]
-        if customoptions.get("outlinecolor", "not specified") == "not specified":
+        if "fillcolor" not in customoptions:
+            customoptions["fillcolor"] = tuple([random.randrange(0,255) for _ in xrange(3)])
+        if "outlinecolor" not in customoptions:
             customoptions["outlinecolor"] = (0,0,0)
+
+        # force to tuple of ints so user doesnt have to
+        if isinstance(customoptions["fillcolor"], (tuple,list)):
+            customoptions["fillcolor"] = tuple(map(int,customoptions["fillcolor"]))
+        if isinstance(customoptions["outlinecolor"], (tuple,list)):
+            customoptions["outlinecolor"] = tuple(map(int,customoptions["outlinecolor"]))
             
         # finish  
         return customoptions
