@@ -119,7 +119,49 @@ def _floatrange(start, end, interval):
             yield cur
             cur -= interval
 
+class Gradient:
+    def __init__(self, colorstops):
+        self.colorstops = colorstops
 
+    def interp(self, precision=100):
+        def linear_gradient(fromrgb, torgb, n=10):
+            ''' returns a gradient list of (n) colors between
+            two hex colors. start_hex and finish_hex
+            should be the full six-digit color string,
+            inlcuding the number sign ("#FFFFFF") '''
+            # Starting and ending colors in RGB form
+            s = fromrgb
+            f = torgb
+            # Initilize a list of the output colors with the starting color
+            RGB_list = [s]
+            # Calcuate a color at each evenly spaced value of t from 1 to n
+            for t in range(1, n):
+            # Interpolate RGB vector for color at the current value of t
+                curr_vector = [
+                int(s[j] + (float(t)/(n-1))*(f[j]-s[j]))
+                for j in range(3)
+                ]
+                # Add it to our list of output colors
+                RGB_list.append(curr_vector)
+            return RGB_list
+
+        def polylinear_gradient(colors, n):
+            ''' returns a list of colors forming linear gradients between
+              all sequential pairs of colors. "n" specifies the total
+              number of desired output colors '''
+            # The number of colors per individual linear gradient
+            n_out = int(float(n) / (len(colors) - 1))
+            final_gradient = []
+            # returns dictionary defined by color_dict()
+            prevcolor = colors[0]
+            for nextcolor in colors[1:]:
+                subgrad = linear_gradient(prevcolor, nextcolor, n_out)
+                final_gradient.extend(subgrad[:-1])
+                prevcolor = nextcolor
+            final_gradient.append(nextcolor)
+            return final_gradient
+
+        return polylinear_gradient(self.colorstops, precision)
 
 
 
@@ -336,7 +378,7 @@ class Canvas:
         self.custom_space(*newbbox, lock_ratio=False)
         return self
 
-    def rotate(self, degrees):
+    def rotate(self, degrees, expand=True):
         """
         Rotate the canvas image in degree angles,
         and the coordinate system will follow.
@@ -352,7 +394,7 @@ class Canvas:
             the new instance to allow for linked method calls. 
         """
         self.drawer.flush()
-        self.img = self.img.rotate(degrees, PIL.Image.BICUBIC, expand=0)
+        self.img = self.img.rotate(degrees, PIL.Image.BICUBIC, expand=expand)
         self.update_drawer_img()
         # Somehow update the drawtransform/coordspace to follow the image change operation
         # Rotate around the midpoint
@@ -1060,8 +1102,9 @@ class Canvas:
 ##        self.update_drawer_img()
 
     def draw_axis(self, axis, minval, maxval, intercept,
+                  tickpos=None,
                   tickinterval=None, ticknum=5,
-                  tickfunc=None, tickoptions={"fillsize":"0.4%min"},
+                  tickfunc=None, tickoptions={},
                   ticklabelformat=None, ticklabeloptions={},
                   noticks=False, noticklabels=False,
                   **kwargs):
@@ -1074,6 +1117,12 @@ class Canvas:
         
         if "fillsize" not in kwargs:
             kwargs["fillsize"] = "1px"
+        if "fillcolor" not in kwargs:
+            kwargs["fillcolor"] = "black"
+        if "fillsize" not in tickoptions:
+            tickoptions["fillsize"] = "0.4%min"
+        if "fillcolor" not in tickoptions:
+            tickoptions["fillcolor"] = "black"
         if not tickfunc:
             tickfunc = self.draw_box
         if not ticklabelformat:
@@ -1102,7 +1151,11 @@ class Canvas:
             _ticklabeloptions = {"anchor":"n"}
             _ticklabeloptions.update(ticklabeloptions)
             self.draw_line([(minval,intercept),(maxval,intercept)], **kwargs)
-            for x in _floatrange(minval, maxval+tickinterval, tickinterval):
+            if tickpos:
+                xpos = tickpos
+            else:
+                xpos = _floatrange(minval, maxval+tickinterval, tickinterval)
+            for x in xpos:
                 if x > maxval:
                     x = maxval
                 if not noticks:
@@ -1114,7 +1167,11 @@ class Canvas:
             _ticklabeloptions = {"anchor":"e"}
             _ticklabeloptions.update(ticklabeloptions)
             self.draw_line([(intercept,minval),(intercept,maxval)], **kwargs)
-            for y in _floatrange(minval, maxval+tickinterval, tickinterval):
+            if tickpos:
+                ypos = tickpos
+            else:
+                ypos = _floatrange(minval, maxval+tickinterval, tickinterval)
+            for y in ypos:
                 if y > maxval:
                     y = maxval
                 if not noticks:

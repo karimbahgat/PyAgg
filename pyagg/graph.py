@@ -6,6 +6,7 @@ Still a work in progress, and misses several features.
 import itertools
 import operator
 import math
+import random
 
 
 from .canvas import Canvas
@@ -118,21 +119,26 @@ class BarChart:
     
     def __init__(self):
         self.categories = dict()
-        self.bargap = 1
-        self.barwidth = 5
+        self.bargap = 0.2
+        self.barwidth = 1
+        self.categorygap = 0
+        self.padding = 0.2
         
     def add_category(self, name, baritems=[], barlabels=[], barvalues=[], **kwargs):
         if baritems:
             if len(baritems[0]) != 2:
                 raise Exception("all baritems must have length 2")
+            barlabels,barvalues = zip(*baritems)
         elif barlabels and barvalues:
             if len(barlabels) != len(barvalues):
                 raise Exception("bar labels and values series must be same length")
         else:
             raise Exception("you must choose either baritems or both barlabels and barvalues")
-        self.categories[name] = {"barlabels":barlabels, "bars":barvalues, "options":kwargs}
+        if "fillcolor" not in kwargs:
+            kwargs["fillcolor"] = (random.randrange(256),random.randrange(256),random.randrange(256))
+        self.categories[name] = {"pos":len(self.categories), "barlabels":barlabels, "bars":barvalues, "options":kwargs}
 
-    def draw(self, axisoptions={}, labelformat="", **kwargs):
+    def draw(self, axisoptions={}, **kwargs):
         canvasoptions = CANVASOPTIONS.copy()
         canvasoptions.update(kwargs)
         canvas = Canvas(**canvasoptions)
@@ -140,38 +146,69 @@ class BarChart:
         ymin = min(0, ymin)     # to ensure snapping to 0 if ymin is not negative
         ymax = max((max(dict["bars"]) for category,dict in self.categories.items()))
         _barcount = sum((len(dict["bars"]) for category,dict in self.categories.items()))
+        _clustercount = len(set((dict["bars"] for category,dict in self.categories.items())))
         xmin = 0
-        xmax = self.bargap + ( (self.barwidth + self.bargap) * _barcount)
+        xmax = self.bargap + ( (self.barwidth + self.categorygap) * _barcount) + self.bargap * _clustercount - self.categorygap * _clustercount
         
         # set coordinate bbox
         canvas.custom_space(xmin,ymax,xmax,ymin)
-        canvas.zoom_factor(-1.2)
+        canvas.zoom_factor(-1-self.padding)
 
-        # draw axes
-        if ymin < 0 and ymax > 0:
-            canvas.draw_axis("x", xmin, xmax, tickinterval=(xmax-xmin)/5.0, intercept=0,
-                             noticklabels=True)
-        canvas.draw_axis("y", ymin, ymax, tickinterval=(ymax-ymin)/5.0, intercept=xmin,
-                         ticklabeloptions={"anchor":"e"})
-        # default xaxis with label for each bar
-        # NEEDS FIXIN
-        defaultaxisoptions = {"x":{"ticknum":_barcount,
+        # default axis options
+        defaultaxisoptions = {"x":{"minval":self.bargap+self.barwidth/2.0,
+                                   "maxval":xmax-self.bargap-self.barwidth/2.0,
+                                   "tickinterval":1+self.bargap,
                                    "intercept":ymin,
-                                   "ticklabeloptions":{"rotate":30, "anchor":"ne"}}}
+                                   "noticks":True,
+                                   "noticklabels":False,
+                                   "ticklabeloptions":{"rotate":30, "anchor":"ne"}},
+                              "y":{"minval":ymin,
+                                   "maxval":ymax,
+                                   "ticknum":5,
+                                   "intercept":xmin,
+                                   "ticklabeloptions":{"anchor":"e"},
+                                   }
+                              }
         nested_update(defaultaxisoptions, axisoptions)
-        canvas.draw_axis("x", xmin, xmax, **defaultaxisoptions["x"])
                 
         # draw categories
+        textlabeloptions = defaultaxisoptions["x"]["ticklabeloptions"]
         baroffset = 0
-        for category,dict in self.categories.items():
+        for category,cdict in sorted(self.categories.items(), key=lambda x: x[1]["pos"]):
+            print category
             curx = self.bargap + baroffset
-            for barlabel,barvalue in itertools.izip(dict["barlabels"], dict["bars"]):
+            for barlabel,barvalue in itertools.izip(cdict["barlabels"], cdict["bars"]):
+                print curx
                 flat = [curx,0, curx+self.barwidth,0, curx+self.barwidth,barvalue, curx,barvalue]
-                canvas.draw_polygon(flat, **dict["options"])
-                #barlabel = format(barlabel,labelformat)
-                #canvas.draw_text(barlabel, xy=(curx+self.barwidth/2.0,0))
-                curx += self.barwidth + self.bargap
-            baroffset += self.barwidth
+                canvas.draw_polygon(flat, **cdict["options"])
+                if "valuelabel" in cdict["options"] and cdict["options"]["valuelabel"]:
+                    valuelabeloptions = cdict["options"].get("valuelabeloptions",{})
+                    frmt = cdict["options"].get("valuelabelformat")
+                    if frmt:
+                        barvaluelabel = format(barvalue, frmt)
+                    else:
+                        barvaluelabel = str(barvalue)
+                    canvas.draw_text(barvaluelabel, xy=(curx+self.barwidth/2.0,barvalue), **valuelabeloptions)
+                if not defaultaxisoptions["x"]["noticklabels"]:
+                    canvas.draw_text(barlabel, xy=(curx+self.barwidth/2.0,0), **textlabeloptions)
+                curx += self.barwidth * len(self.categories) + self.categorygap * (len(self.categories)-1) + self.bargap
+            baroffset += self.barwidth + self.categorygap
+
+        # draw axes
+        nolabelaxisoptions = dict()
+        nested_update(nolabelaxisoptions, defaultaxisoptions)
+        nolabelaxisoptions["x"]["noticklabels"] = True  # override no x labels, since those are handled manually when drawing each bar
+        nolabelaxisoptions["x"]["minval"] = xmin
+        nolabelaxisoptions["x"]["maxval"] = xmax
+        if ymin < 0 and ymax > 0:
+            # just the line if both positive and negative values
+            canvas.draw_axis("x", minval=self.bargap,
+                             maxval=xmax,
+                             noticks=True,
+                             noticklabels=True)
+        canvas.draw_axis("y", **nolabelaxisoptions["y"])
+        canvas.draw_axis("x", **nolabelaxisoptions["x"])
+            
         # return the drawed canvas
         return canvas
 
@@ -244,6 +281,7 @@ class LineGraph:
         if xyvalues:
             if len(xyvalues[0]) != 2:
                 raise Exception("all xy series items must have length 2")
+            xvalues,yvalues = zip(*xyvalues)
         elif xvalues and yvalues:
             if len(xvalues) != len(yvalues):
                 raise Exception("x and y series must be same length")
@@ -308,6 +346,7 @@ class ScatterPlot:
         if xyvalues:
             if len(xyvalues[0]) != 2:
                 raise Exception("all xy series items must have length 2")
+            xvalues,yvalues = zip(*xyvalues)
         elif xvalues and yvalues:
             if len(xvalues) != len(yvalues):
                 raise Exception("x and y series must be same length")
@@ -359,6 +398,7 @@ class BubblePlot:
         if xyvalues:
             if len(xyvalues[0]) != 2:
                 raise Exception("all xy series items must have length 2")
+            xvalues,yvalues = zip(*xyvalues)
         elif xvalues and yvalues:
             if len(xvalues) != len(yvalues):
                 raise Exception("x and y series must be same length")
