@@ -1104,17 +1104,39 @@ class Canvas:
     def draw_axis(self, axis, minval, maxval, intercept,
                   tickpos=None,
                   tickinterval=None, ticknum=5,
-                  tickfunc=None, tickoptions={},
+                  ticktype="tick", tickoptions={},
                   ticklabelformat=None, ticklabeloptions={},
                   noticks=False, noticklabels=False,
                   **kwargs):
-        # ONLY BASIC SO FAR...
+
+        if not tickoptions: tickoptions = dict()
+        if not ticklabeloptions: ticklabeloptions = dict()
+        
         xleft,ytop,xright,ybottom = self.coordspace_bbox
         xs = (xleft,xright)
         ys = (ytop,ybottom)
         xmin,xmax = min(xs),max(xs)
         ymin,ymax = min(ys),max(ys)
+
+        if ticktype == "tick":
+            ticktype = "box"
+
+        if axis == "x":
+            tickoptions["fillwidth"] = tickoptions.get("fillwidth","0.5px")
+            tickoptions["fillheight"] = tickoptions.get("fillheight","4px")
+        else:
+            w,h = tickoptions.get("fillwidth","0.5px"),tickoptions.get("fillheight","4px")
+            # switch them since width intuitively means thickness of the tick
+            tickoptions["fillwidth"] = h
+            tickoptions["fillheight"] = w
         
+        if ticktype in ("box","circle","triangle"):
+            tickfunc = getattr(self, "draw_%s"%ticktype)
+        elif hasattr(ticktype,"__call__"):
+            tickfunc = ticktype
+        else:
+            raise Exception("Invalid ticktype")
+            
         if "fillsize" not in kwargs:
             kwargs["fillsize"] = "1px"
         if "fillcolor" not in kwargs:
@@ -1803,6 +1825,11 @@ class Canvas:
 
             # PIL doesnt support transforms, so must get the pixel coords of the coordinate
             x,y = xorig,yorig = self.coord2pixel(x,y)
+
+            # offset
+            xoffset,yoffset = options.get("xoffset"),options.get("yoffset")
+            if xoffset or yoffset:
+                x,y = xorig,yorig = self._offset_xy((x,y), xoffset, yoffset)
             
             # get font dimensions
             font = PIL.ImageFont.truetype(fontlocation, size=options["textsize"]) #, opacity=options["textopacity"])
@@ -2310,11 +2337,29 @@ class Canvas:
             textsize = customoptions["textsize"]
             if isinstance(textsize, str) and textsize.endswith("%"):
                 textsize = self.default_textoptions["textsize"] * float(textsize[:-1]) / 100.0
+            if self.ppi != 97:
+                textsize *= self.ppi / 97.0 # textsize pixel resolution assumes 97 ppi, so must be adjusted for desired ppi
             customoptions["textsize"] = int(round(textsize))
 
         finaloptions = self.default_textoptions.copy()
         finaloptions.update(customoptions)
         return finaloptions
+
+    def _offset_xy(self, xy, xoffset=None, yoffset=None):
+        x,y = xy
+        if xoffset:
+            x += units.parse_dist(xoffset,
+                                 ppi=self.ppi,
+                                 default_unit=self.default_unit,
+                                 canvassize=[self.width,self.height],
+                                 coordsize=[self.coordspace_width,self.coordspace_height])
+        if yoffset:
+            y += units.parse_dist(yoffset,
+                                 ppi=self.ppi,
+                                 default_unit=self.default_unit,
+                                 canvassize=[self.width,self.height],
+                                 coordsize=[self.coordspace_width,self.coordspace_height])
+        return (x,y)
 
 
 

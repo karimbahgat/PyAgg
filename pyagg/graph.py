@@ -170,29 +170,47 @@ class BarChart:
                                    }
                               }
         nested_update(defaultaxisoptions, axisoptions)
-                
+               
         # draw categories
         textlabeloptions = defaultaxisoptions["x"]["ticklabeloptions"]
         baroffset = 0
         for category,cdict in sorted(self.categories.items(), key=lambda x: x[1]["pos"]):
-            print category
             curx = self.bargap + baroffset
+
+            # valuelabel options
+            valuelabeloptions = cdict["options"].get("valuelabeloptions",{})
+            valuelabelformat = cdict["options"].get("valuelabelformat")
+            novaluelabels = cdict["options"].get("novaluelabels", True)
+            if not valuelabelformat:
+                valrange = ymax - ymin
+                if valrange < 1:
+                    valuelabelformat = ".6f"
+                elif valrange < 10:
+                    valuelabelformat = ".1f"
+                else:
+                    valuelabelformat = ".0f"
+            if isinstance(valuelabelformat, str):
+                _frmt = valuelabelformat
+                valuelabelformat = lambda s: format(s, _frmt)
+            
+            # loop
             for barlabel,barvalue in itertools.izip(cdict["barlabels"], cdict["bars"]):
-                print curx
                 flat = [curx,0, curx+self.barwidth,0, curx+self.barwidth,barvalue, curx,barvalue]
                 canvas.draw_polygon(flat, **cdict["options"])
-                if "valuelabel" in cdict["options"] and cdict["options"]["valuelabel"]:
-                    valuelabeloptions = cdict["options"].get("valuelabeloptions",{})
-                    frmt = cdict["options"].get("valuelabelformat")
-                    if frmt:
-                        barvaluelabel = format(barvalue, frmt)
-                    else:
-                        barvaluelabel = str(barvalue)
+                if not novaluelabels:
+                    barvaluelabel = valuelabelformat(barvalue)
                     canvas.draw_text(barvaluelabel, xy=(curx+self.barwidth/2.0,barvalue), **valuelabeloptions)
-                if not defaultaxisoptions["x"]["noticklabels"]:
-                    canvas.draw_text(barlabel, xy=(curx+self.barwidth/2.0,0), **textlabeloptions)
                 curx += self.barwidth * len(self.categories) + self.categorygap * (len(self.categories)-1) + self.bargap
             baroffset += self.barwidth + self.categorygap
+
+        # draw category labels
+        xincr = self.barwidth * len(self.categories) + self.categorygap * (len(self.categories)-1) + self.bargap
+        curx = self.bargap + xincr / 2.0 - self.barwidth
+        cdict = self.categories.values()[0]
+        for barlabel in cdict["barlabels"]:
+            if not defaultaxisoptions["x"]["noticklabels"]:
+                canvas.draw_text(barlabel, xy=(curx,0), **textlabeloptions)
+            curx += xincr
 
         # draw axes
         nolabelaxisoptions = dict()
