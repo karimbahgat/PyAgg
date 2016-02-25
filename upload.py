@@ -1,7 +1,7 @@
-import pypi
+import pipy
  
 packpath = "pyagg"
-pypi.define_upload(packpath,
+pipy.define_upload(packpath,
                    name="PyAgg",
                    description="Simple user-oriented graphics drawing and image manipulation.",
                    author="Karim Bahgat",
@@ -19,9 +19,10 @@ pypi.define_upload(packpath,
                                 "Topic :: Scientific/Engineering :: Visualization",
                                 "Topic :: Multimedia :: Graphics",
                                 "Topic :: Scientific/Engineering :: GIS"],
+                   changes=[],
                    )
 
-#pypi.upload_test(packpath)
-pypi.generate_docs(packpath)
+#pipy.upload_test(packpath)
+pipy.generate_docs(packpath)
 
-#pypi.upload(packpath)
+#pipy.upload(packpath)
