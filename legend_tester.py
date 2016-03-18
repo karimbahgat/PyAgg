@@ -1,27 +1,73 @@
 
 from pyagg.legend import Symbol, SymbolGroup, Legend
+from pyagg import Canvas
 
-##symbol = Symbol("blabla")
-##symbol.render(0.1).view()
+
+
+legend = Legend(direction="s", anchor="w")
+
+
+##def grouplabel():
+##    c = Canvas(200,40)
+##    c.draw_text("SymbolGroup 1",(0,0),anchor="nw", textsize="40%")
+##    return c
+##legend.add_item(Symbol(grouplabel))
 ##
-##fdsfdsa
+##
+##gr = SymbolGroup(direction="e", anchor="s")
+##gr.add_item(Symbol("circle","fillsize",fillsize=100,outlinewidth=10))
+##gr.add_item(Symbol("triangle","fillsize",fillsize=200,outlinewidth=10))
+##gr.add_item(Symbol("box","fillsize",fillsize=300,outlinewidth=10))
+##legend.add_item(gr)
+##
+##
+##def grouplabel():
+##    c = Canvas(200,40)
+##    c.draw_text("SymbolGroup 2",(0,0),anchor="nw", textsize="40%")
+##    return c
+##legend.add_item(Symbol(grouplabel))
+##
+##
+##gr = SymbolGroup(direction="w", anchor="s")
+##gr.add_item(Symbol("circle","fillsize",fillsize=100,outlinewidth=10))
+##gr.add_item(Symbol("triangle","fillsize",fillsize=200,outlinewidth=10))
+##gr.add_item(Symbol("box","fillsize",fillsize=300,outlinewidth=10))
+##legend.add_item(gr)
 
 
-folder = r"C:\Users\kimo\Documents\GitHub\pshapes_site\(misc)\design ideas"
+def label(text):
+    c = Canvas(200,40)
+    c.draw_text(text,(0,0),anchor="nw", textsize="40%")
+    return c
+legend.add_item(Symbol(lambda: label("SymbolGroup 3")))
 
-gr = SymbolGroup()
-gr.add_symbol(Symbol(folder+r"\pshapes logo example.jpg"))
-gr.add_symbol(Symbol(folder+r"\mailchimp-free.png"))
-gr.add_symbol(Symbol(folder+r"\aqueduct.png"))
-gr.render(direction="e", anchor="s").save("testlegend.png")
+sideways = SymbolGroup(direction="e", anchor="s")
 
-fdsfdsf
+gr = SymbolGroup(items=[SymbolGroup([Symbol("circle","fillsize",fillsize=300,outlinewidth=10),
+                                     Symbol(lambda: label("Symbol 3"))],
+                                    direction="e", anchor="n"),
+                         SymbolGroup([Symbol("circle","fillsize",fillsize=200,outlinewidth=10),
+                                     Symbol(lambda: label("Symbol 2"))],
+                                    direction="e", anchor="n"),
+                         SymbolGroup([Symbol("circle","fillsize",fillsize=100,outlinewidth=10),
+                                     Symbol(lambda: label("Symbol 1"))],
+                                    direction="e", anchor="n"),
+                        ],
+                 direction="center",
+                 anchor="center",
+                 )
+sideways.add_item(gr)
 
-gr2 = SymbolGroup()
-gr2.add_symbol(symbol)
+##gr = SymbolGroup(direction="n", anchor="w")
+##gr.add_item(Symbol(lambda: label("Symbol 1")))
+##gr.add_item(Symbol(lambda: label("Symbol 2")))
+##gr.add_item(Symbol(lambda: label("Symbol 3")))
+##sideways.add_item(gr)
 
-lg = Legend()
-lg.add_symbolgroup(gr)
-lg.add_symbolgroup(gr2)
+legend.add_item(sideways)
 
-lg.render().view()
+
+legend.render().save("testlegend.png")
+
+
+

@@ -1476,7 +1476,7 @@ class Canvas:
                                            yratio=yheight / float(oldyheight) )
         self.coordspace_transform = transcoeffs
 
-    def set_default_unit(unit):
+    def set_default_unit(self, unit):
         """
         Sets the default unit for drawing sizes etc.
 
@@ -2282,7 +2282,7 @@ class Canvas:
         # fillsize
         # NOTE: if circle is specified with an area, get radius by:
         #    math.sqrt(area_squared/math.pi)
-        if customoptions.get("fillsize"):
+        if "fillsize" in customoptions:
             customoptions["fillsize"] = units.parse_dist(customoptions["fillsize"],
                                                          ppi=self.ppi,
                                                          default_unit=self.default_unit,
@@ -2290,7 +2290,7 @@ class Canvas:
                                                          coordsize=[self.coordspace_width,self.coordspace_height])
         else:
             customoptions["fillsize"] = units.parse_diststring("0.7%w", ppi=self.ppi, canvassize=[self.width,self.height])
-        if customoptions.get("fillwidth"):
+        if "fillwidth" in customoptions:
             customoptions["fillwidth"] = units.parse_dist(customoptions["fillwidth"],
                                                          ppi=self.ppi,
                                                          default_unit=self.default_unit,
@@ -2298,7 +2298,7 @@ class Canvas:
                                                          coordsize=[self.coordspace_width,self.coordspace_height])
         else:
             customoptions["fillwidth"] = customoptions["fillsize"] * 2
-        if customoptions.get("fillheight"):
+        if "fillheight" in customoptions:
             customoptions["fillheight"] = units.parse_dist(customoptions["fillheight"],
                                                          ppi=self.ppi,
                                                          default_unit=self.default_unit,
@@ -2307,7 +2307,7 @@ class Canvas:
         else:
             customoptions["fillheight"] = customoptions["fillsize"] * 2
         # outlinewidth
-        if customoptions.get("outlinewidth"):
+        if "outlinewidth" in customoptions:
             customoptions["outlinewidth"] = units.parse_dist(customoptions["outlinewidth"],
                                                          ppi=self.ppi,
                                                          default_unit=self.default_unit,
