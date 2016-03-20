@@ -68,20 +68,18 @@ try:
                     sys.path.insert(0, PYAGGFOLDER+"/precompiled/win/bit64/py27")
                     import aggdraw
                     sys.path = sys.path[1:] # remove previously added aggdraw path
-    elif OSSYSTEM == "mac":
+    elif OSSYSTEM == "mac" or OSSYSTEM == "linux":
         if PYBITS == "32":
-            raise ImportError("Currently no Mac precompilation for 32-bit Py26 or Py27")
+            raise ImportError("Currently no Unix precompilation for 32-bit Py26 or Py27")
         elif PYBITS == "64":
             if PYVERSION == "2.6":
-                raise ImportError("Currently no Mac precompilation for 64-bit Py26")
+                raise ImportError("Currently no Unix precompilation for 64-bit Py26")
             elif PYVERSION == "2.7":
-                try: from .precompiled.mac.bit64.py27 import aggdraw
+                try: from .precompiled.unix.bit64.py27 import aggdraw
                 except:
-                    sys.path.insert(0, PYAGGFOLDER+"/precompiled/mac/bit64/py27")
+                    sys.path.insert(0, PYAGGFOLDER+"/precompiled/unix/bit64/py27")
                     import aggdraw
                     sys.path = sys.path[1:] # remove previously added aggdraw path
-    elif OSSYSTEM == "linux":
-        raise ImportError("Currently no Linux precompilation for any version or bit system")
 except ImportError:
     import aggdraw # in case user has compiled a working aggdraw version on their own
 
