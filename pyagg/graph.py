@@ -72,9 +72,19 @@ class Histogram:
                 count += 1
             else:
                 self.bins.append(((curval,nextval), count))
-                count = 0 + 1 # count towards next bin
+                count = 0
                 curval = nextval
                 nextval = curval + binwidth
+                # skip bins until find match
+                while val >= nextval:
+                    count = 0
+                    self.bins.append(((curval,nextval), count))
+                    curval = nextval
+                    nextval = curval + binwidth
+                # found next belonging bin
+                count += 1 # count towards next bin
+        # add the last bin
+        self.bins.append(((curval,nextval), count))
         
     def draw(self, axisoptions={}, **kwargs):
         # use these aggregated bin values as bars arg, and the bin range text as barlabels
