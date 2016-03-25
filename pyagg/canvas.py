@@ -706,8 +706,13 @@ class Canvas:
 
     def equalize(self):
         self.drawer.flush()
+        oldmode = self.img.mode
+        if not self.img.mode == "RGB":
+            self.img = self.img.convert("RGB")
         self.img = PIL.ImageOps.equalize(self.img)
         self.update_drawer_img()
+        if oldmode != self.img.mode:
+            self.img = self.img.convert(oldmode)
         return self
 
     def invert(self):
@@ -867,10 +872,12 @@ class Canvas:
         colors = polylinear_gradient(gradient, 256)
         # put into palette
         plt = [spec for rgb in colors for spec in rgb]
-        r,g,b,a = self.img.split()
+        if self.img.mode == "RGBA":
+            r,g,b,a = self.img.split()
         self.img = self.img.convert("L")
         self.img.putpalette(plt)
-        self.img.putalpha(a)
+        if self.img.mode == "RGBA":
+            self.img.putalpha(a)
         self.img = self.img.convert("RGBA")
         self.update_drawer_img()
 
