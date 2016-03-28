@@ -74,7 +74,9 @@ Python 2.6, 2.7.
 Dependencies
 ------------
 
-PIL/Pillow (used for image loading, saving, and manipulation)
+PIL/Pillow (used for image loading, saving, and manipulation. Also used
+for text-rendering, which means if you compile PIL/Pillow on your own
+make sure FreeType support is enabled)
 
 Installing it
 -------------
@@ -159,5 +161,5 @@ Karim Bahgat (2015)
 Changes
 -------
 
-0.1 (2016-02-26)
+0.1 (2016-03-28)
 ~~~~~~~~~~~~~~~~
