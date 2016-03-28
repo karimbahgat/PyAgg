@@ -970,6 +970,8 @@ class Canvas:
         
         if "fillsize" not in kwargs:
             kwargs["fillsize"] = "1px"
+        if "fillcolor" not in kwargs:
+            kwargs["fillcolor"] = "1px"
 
         xorigin, yorigin = 0,0
         
@@ -1113,6 +1115,32 @@ class Canvas:
                   ticklabelformat=None, ticklabeloptions={},
                   noticks=False, noticklabels=False,
                   **kwargs):
+        """
+        Draws an axis line with tickmarks and labels marking positions along
+        the canvas coordinate system. 
+
+        Parameters:
+
+        - *axis*: Which axis of the coordinate system to draw, either 'x' or 'y' (str)
+        - *minval*: At which coordinate along the selected axis the axis line should start.
+        - *maxval*: At which coordinate along the selected axis the axis line should end.
+        - *intercept*: If drawing a y-axis, where along the opposite x-axis that the line should be
+            positioned (the x-coordinate where the two axes intercept). Opposite if drawing an x-axis.
+        - *tickpos* (optional): A list of positions where tick marks should be drawn.
+        - *tickinterval* (optional): The coordinate interval between tick marks.
+        - *ticknum* (optional): The number of ticks to draw between the minimum and maximum values.
+        - *ticktype* (optional): What type of tick to draw, either 'tick' for a small line, or any of the
+            canvas primitive drawing types, eg 'circle', etc. Alternatively a function that takes an xy arg
+            and kwargs to be called for every tick. 
+        - *tickoptions* (optional): Dictionary of options to be passed to the ticktype drawing method.
+        - *ticklabelformat* (optional): Python formatting string or function for converting coordinate values
+            to tick labels. By default auto detects an appropriate formatting based on the axis value range. 
+        - *ticklabeloptions* (optional): Dictionary of options to be passed to the draw_text() tick labeling method.
+        - *noticks* (optional): Disables drawing any tick marks.
+        - *noticklabels* (optional): Disables drawing any tick mark labels.
+        - *kwargs* (optional): Any additional keyword args are passed on as options to the draw_line() method
+            that renders the axis line. 
+        """
 
         if not tickoptions: tickoptions = dict()
         if not ticklabeloptions: ticklabeloptions = dict()

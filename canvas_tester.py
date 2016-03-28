@@ -33,14 +33,14 @@ def test_text():
     #canvas.move("51x","51y")
     canvas.draw_grid(25,25)
     canvas.zoom_out(1.4)
-    canvas.draw_axis("x", 0, 140, 0, 25, ticklabeloptions={"textsize":30, "rotate":40, "anchor":"sw","fillcolor":"white"})
-    canvas.draw_axis("y", 0, 100, 0, 25, ticklabeloptions={"textsize":30, "rotate":70, "anchor":"ne"},
+    canvas.draw_axis("x", 0, 140, 0, ticknum=25, ticklabeloptions={"textsize":30, "rotate":40, "anchor":"sw"})
+    canvas.draw_axis("y", 0, 100, 0, ticknum=25, ticklabeloptions={"textsize":30, "rotate":70, "anchor":"ne"},
                      tickfunc=canvas.draw_circle, tickoptions={"fillsize":"1%min"})
 
     canvas.draw_line([10,10, 50,90, 90,10],
                      smooth=True,
                      fillcolor=(222,0,0),
-                     fillsize="2cm")
+                     fillsize="0.5cm")
 
     canvas.draw_text("Once upon a time", (50,20), fillcolor="white", textsize=32)
     canvas.draw_text("Someplace Near Boulder", (50,30), textsize=12)
@@ -73,10 +73,11 @@ def test_text():
     #print canvas.coordspace_units
     #canvas.zoom_units(1)
     #print canvas.coordspace_units
-    canvas.draw_line([10,10, 50,90, 90,10],
-                     smooth=True,
-                     fillcolor=(222,0,0),
-                     fillsize="2cm")
+    
+##    canvas.draw_line([10,10, 50,90, 90,10],
+##                     smooth=True,
+##                     fillcolor=(222,0,0),
+##                     fillsize="2cm")
 
     # draw corner coords
     xy = canvas.pixel2coord(0,0)
@@ -86,7 +87,7 @@ def test_text():
 
     # draw rotated text
     canvas.draw_text("Rotated", (100,50), textcolor="black", textsize=32, rotate=15)
-    canvas.color_remap([(222,0,0),(222,222,0),(0,222,0),(0,222,222),(0,0,222)])
+    #canvas.color_remap([(222,0,0),(222,222,0),(0,222,0),(0,222,222),(0,0,222)])
     canvas.view()
 
     #canvas.rotate(45)
@@ -185,7 +186,7 @@ def test_text():
 ##    #canvas.custom_space(-180,90,180,-90)
 ##    #canvas.zoom_bbox(-180,90,0,0)
     
-    canvas.save("C:/Users/kimo/Desktop/ble.png")#view()
+    canvas.save("__private__/test_output/canvas_tester.png")#view()
 
 
 
