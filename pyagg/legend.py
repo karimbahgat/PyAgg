@@ -8,7 +8,7 @@ from .canvas import Canvas
 #######
 
 
-class Symbol:
+class _Symbol:
     def __init__(self, type, mode=None, refcanvas=None, **kwargs):
         """
         - Type is the type of geometry to draw, eg box, circle, etc.
@@ -64,15 +64,46 @@ class Symbol:
             func = getattr(c, "draw_"+self.type)
             func(xy=(x,y), anchor="center", **self.kwargs)
 
-        c.view() #update_drawer_img() # STRANGE BUG, DOESNT RENDER UNLESS CALLING VIEW HERE...
+        c.drawer.flush()
+        c.update_drawer_img() # STRANGE BUG, DOESNT RENDER UNLESS CALLING VIEW HERE...
+
+        return c
+
+
+class Label(_Symbol):
+    def __init__(self, text, refcanvas=None, **kwargs):
+        self.text = text
+        self.refcanvas = refcanvas
+        self.kwargs = dict(kwargs)
+
+    def render(self):
+        # fillsize is used directly
+        if self.refcanvas: 
+            info = dict(refcanvas._check_text_options(self.kwargs))
+        else:
+            info = dict(Canvas(10,10)._check_text_options(self.kwargs))
+
+        # get size
+        import PIL, PIL.ImageFont
+        from . import fonthelper
+        fontlocation = fonthelper.get_fontpath(info["font"])
+        font = PIL.ImageFont.truetype(fontlocation, size=info["textsize"]) 
+        reqwidth, reqheight = font.getsize(self.text)
+                    
+        # create canvas and draw
+        c = Canvas(width=reqwidth, height=reqheight)
+        c.set_default_unit("px")
+        x = reqwidth / 2.0
+        y = reqheight / 2.0
+        c.draw_text(self.text, xy=(x,y), anchor="center", **self.kwargs)
+
         return c
 
 
 class _BaseGroup:
-    def __init__(self, items=None, title="", direction="e", padding=0.05, anchor="center", **boxoptions):
+    def __init__(self, items=None, direction="e", padding=0.05, anchor="center", **boxoptions):
         print items
-        self.items = list(items) if items else []
-        self.title = title
+        self.items = list(items) if items else []        
         self.direction = direction
         self.padding = padding
         self.anchor = anchor
@@ -88,7 +119,6 @@ class _BaseGroup:
         Returns a grouping of these symbols drawn on a canvas
         with an optional outline and background.
         """
-        title = override.get("title") or self.title
         direction = override.get("direction") or self.direction
         padding = override.get("padding") or self.padding
         anchor = override.get("anchor") or self.anchor
@@ -187,12 +217,60 @@ class _BaseGroup:
         boxoptions = dict(fillcolor=fillcolor,
                           outlinecolor=outlinecolor)
         return boxoptions
-            
-
-class SymbolGroup(_BaseGroup): pass
 
 
-class Legend(_BaseGroup):
+class BaseGroup(_BaseGroup):
+    # TODO: This is where title should be allowed
+    # all others with titles or labels should inherit from this one
+    def __init__(self, items=None, title="", titleoptions=None, direction="e", padding=0.05, anchor="center", **boxoptions):
+        print items
+        self.items = []
+
+        titleoptions = titleoptions or dict()
+        if title:
+            obj = Label(text=title, **titleoptions)
+            self.items.append(obj)
+
+        # add a sub basegroup that contains the actual items
+        self._basegroup = obj = _BaseGroup(items=items, direction=direction, padding=padding, anchor=anchor, **boxoptions)
+        self.items.append(obj)
+
+        # title anchor
+        self.padding = titleoptions.get("padding", 0.05)
+        self.boxoptions = self._default_boxoptions(**{})
+        side = titleoptions.get("side", "nw")
+        # direction
+        if side[0] == "n":
+            self.direction = "s"
+        elif side[0] == "s":
+            self.direction = "n"
+        elif side[0] == "e":
+            self.direction = "w"
+        elif side[0] == "w":
+            self.direction = "e"
+        # justify
+        if len(side) > 1:
+            self.anchor = side[1]
+        else:
+            self.anchor = "center"
+
+    def add_item(self, item):
+        self._basegroup.items.append(item)
+
+class Symbol(BaseGroup):
+    def __init__(self, type, mode=None, refcanvas=None,
+                 label="", labeloptions=None,
+                 **symboloptions):
+        BaseGroup.__init__(self, title=label, titleoptions=labeloptions)
+        
+        obj = _Symbol(type=type, mode=mode, refcanvas=refcanvas, **symboloptions)
+        self.add_item(obj)
+
+class SymbolGroup(BaseGroup):
+    pass
+
+
+class Legend(BaseGroup):
 
     def _default_boxoptions(self, fillcolor="white", outlinecolor="black"):
         boxoptions = dict(fillcolor=fillcolor,

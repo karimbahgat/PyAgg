@@ -1,10 +1,12 @@
 
-from pyagg.legend import Symbol, SymbolGroup, Legend
+from pyagg.legend import Symbol, Label, SymbolGroup, Legend
 from pyagg import Canvas
 
 
 
-legend = Legend(direction="s", anchor="w")
+legend = Legend(direction="s", anchor="w",
+                title="Legend", titleoptions=dict(font="calibri", textsize=20, side="w"),
+                )
 
 
 ##def grouplabel():
@@ -35,25 +37,35 @@ legend = Legend(direction="s", anchor="w")
 ##legend.add_item(gr)
 
 
-def label(text):
-    c = Canvas(200,40)
-    c.draw_text(text,(0,0),anchor="nw", textsize="40%")
-    return c
-legend.add_item(Symbol(lambda: label("SymbolGroup 3")))
+##def label(text):
+##    c = Canvas(200,40)
+##    c.draw_text(text,(0,0),anchor="nw", textsize="40%")
+##    return c
+##legend.add_item(Label("SymbolGroup 3", font="calibri", textsize=20))
 
-sideways = SymbolGroup(direction="e", anchor="s")
+sideways = SymbolGroup(direction="e", anchor="s",
+                       #title="SymbolGroup3", titleoptions=dict(font="calibri", textsize=20))
+                       )
 
-gr = SymbolGroup(items=[SymbolGroup([Symbol("circle","fillsize",fillsize=300,outlinewidth=10),
-                                     Symbol(lambda: label("Symbol 3"))],
-                                    direction="e", anchor="n"),
-                         SymbolGroup([Symbol("circle","fillsize",fillsize=200,outlinewidth=10),
-                                     Symbol(lambda: label("Symbol 2"))],
-                                    direction="e", anchor="n"),
-                         SymbolGroup([Symbol("circle","fillsize",fillsize=100,outlinewidth=10),
-                                     Symbol(lambda: label("Symbol 1"))],
-                                    direction="e", anchor="n"),
+##gr = SymbolGroup(items=[SymbolGroup([Symbol("circle","fillsize",fillsize=300,outlinewidth=10),
+##                                     Label("Symbol 3")],
+##                                    direction="e", anchor="n"),
+##                         SymbolGroup([Symbol("circle","fillsize",fillsize=200,outlinewidth=10),
+##                                     Label("Symbol 2")],
+##                                    direction="e", anchor="n"),
+##                         SymbolGroup([Symbol("circle","fillsize",fillsize=100,outlinewidth=10),
+##                                     Label("Symbol 1")],
+##                                    direction="e", anchor="n"),
+##                        ],
+##                 direction="center",
+##                 anchor="center",
+##                 )
+gr = SymbolGroup(title="Circle fillsize",
+                items=[Symbol("circle","fillsize",fillsize=300,outlinewidth=10,label="Symbol 3",labeloptions=dict(side="ne")),
+                         Symbol("circle","fillsize",fillsize=200,outlinewidth=10,label="Symbol 2"),
+                         Symbol("circle","fillsize",fillsize=100,outlinewidth=10,label="Symbol 1"),
                         ],
-                 direction="center",
+                 direction="s",
                  anchor="center",
                  )
 sideways.add_item(gr)
@@ -64,7 +76,7 @@ sideways.add_item(gr)
 ##gr.add_item(Symbol(lambda: label("Symbol 3")))
 ##sideways.add_item(gr)
 
-legend.add_item(sideways)
+legend.add_item(gr)
 
 
 legend.render().save("testlegend.png")
