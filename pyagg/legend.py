@@ -48,10 +48,33 @@ class _Symbol:
                 elif self.type == "line":
                     reqheight = info["fillsize"]+info["outlinewidth"]
                     reqwidth = reqheight * 5  # 5 times longer to look like a line
+                else:
+                    raise Exception("Symbol type not recognized")
                     
             elif self.mode == "fillcolor":
                 # only color is important, so ignore fillsize, using only some basic size for all
-                raise Exception("Not yet implemented")
+                if self.refcanvas: 
+                    info = dict(refcanvas._check_options({}))
+                else:
+                    info = dict(fillwidth=10, fillheight=10)
+                    
+                if self.type in ("box","triangle"):
+                    reqwidth,reqheight = info["fillwidth"]*2+info["outlinewidth"],info["fillheight"]*2+info["outlinewidth"]
+                elif self.type in ("circle","pie"):
+                    reqwidth,reqheight = info["fillwidth"]*2+info["outlinewidth"],info["fillheight"]*2+info["outlinewidth"]
+                elif self.type == "line":
+                    reqheight = info["fillsize"]+info["outlinewidth"]
+                    reqwidth = reqheight * 5  # 5 times longer to look like a line
+                elif self.type == "polygon":
+                    reqheight = info["fillheight"]
+                    reqwidth = info["fillwidth"]
+                else:
+                    raise Exception("Symbol type not recognized")
+
+                # make sure to pass size to drawing func
+                self.kwargs["fillwidth"] = reqwidth
+                self.kwargs["fillheight"] = reqheight
+
 
         # create canvas and draw
         c = Canvas(width=reqwidth, height=reqheight)
@@ -61,7 +84,8 @@ class _Symbol:
         if hasattr(self.type, "__call__"):
             c.paste(rendered, (x,y), anchor="center")
         else:
-            func = getattr(c, "draw_"+self.type)
+            drawtype = "box" if self.type == "polygon" else self.type
+            func = getattr(c, "draw_"+drawtype)
             func(xy=(x,y), anchor="center", **self.kwargs)
 
         c.drawer.flush()
@@ -256,6 +280,17 @@ class BaseGroup(_BaseGroup):
 
     def add_item(self, item):
         self._basegroup.items.append(item)
+
+    def add_breakvalues(self, type, mode, breaks, classvalues, direction="s", anchor="w", title="", padding=0, labeloptions=None):
+        labeloptions = labeloptions or dict(side="e")
+        prevbrk = breaks[0]
+        group = SymbolGroup(direction=direction, anchor=anchor, title=title, padding=padding)
+        for i,nextbrk in enumerate(breaks[1:]):
+            group.add_item(Symbol(type=type, mode=mode,
+                                   label="%s to %s"%(prevbrk,nextbrk), labeloptions=labeloptions,
+                                   fillcolor=classvalues[i]))
+            prevbrk = nextbrk
+        self.add_item(group)
 
 class Symbol(BaseGroup):
     def __init__(self, type, mode=None, refcanvas=None,
