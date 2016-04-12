@@ -9,14 +9,12 @@ from .canvas import Canvas
 
 
 class _Symbol:
-    def __init__(self, type, mode=None, refcanvas=None, **kwargs):
+    def __init__(self, type, refcanvas=None, **kwargs):
         """
         - Type is the type of geometry to draw, eg box, circle, etc.
-        - Mode is which part of the geometry to focus on, fillcolor, fillsize,
-        outlinewidth, or outlinecolor. Not needed if type is a function call. 
         """
         self.type = type
-        self.mode = mode
+        print "symbol",refcanvas
         self.refcanvas = refcanvas
         self.kwargs = dict(kwargs)
 
@@ -33,35 +31,25 @@ class _Symbol:
             
         else:
             # symbol is specified with the canvas method type and args (more convenient)
-            if self.mode == "fillsize":
-                # fillsize is used directly
-                if self.refcanvas: 
-                    info = dict(refcanvas._check_options(self.kwargs))
-                else:
-                    info = dict(self.kwargs)
-                    info.update(fillwidth=info["fillsize"], fillheight=info["fillsize"])
-                    
-                if self.type in ("box","triangle"):
-                    reqwidth,reqheight = info["fillwidth"]*2+info["outlinewidth"],info["fillheight"]*2+info["outlinewidth"]
-                elif self.type in ("circle","pie"):
-                    reqwidth,reqheight = info["fillwidth"]*2+info["outlinewidth"],info["fillheight"]*2+info["outlinewidth"]
-                elif self.type == "line":
+            if self.refcanvas:
+                print self.kwargs
+                info = dict(self.refcanvas._check_options(self.kwargs))
+                print info
+                if self.type == "line":
                     reqheight = info["fillsize"]+info["outlinewidth"]
                     reqwidth = reqheight * 5  # 5 times longer to look like a line
                 else:
-                    raise Exception("Symbol type not recognized")
-                    
-            elif self.mode == "fillcolor":
-                # only color is important, so ignore fillsize, using only some basic size for all
-                if self.refcanvas: 
-                    info = dict(refcanvas._check_options({}))
-                else:
-                    info = dict(fillwidth=10, fillheight=10)
-                    
+                    reqwidth = info["fillwidth"]
+                    reqheight = info["fillheight"]
+            else:
+                info = dict(self.kwargs)
+                info.update(fillwidth=info["fillsize"], fillheight=info["fillsize"])
+
+                # calculate size
                 if self.type in ("box","triangle"):
-                    reqwidth,reqheight = info["fillwidth"]*2+info["outlinewidth"],info["fillheight"]*2+info["outlinewidth"]
+                    reqwidth,reqheight = info["fillwidth"]*2,info["fillheight"]*2
                 elif self.type in ("circle","pie"):
-                    reqwidth,reqheight = info["fillwidth"]*2+info["outlinewidth"],info["fillheight"]*2+info["outlinewidth"]
+                    reqwidth,reqheight = info["fillwidth"]*2,info["fillheight"]*2
                 elif self.type == "line":
                     reqheight = info["fillsize"]+info["outlinewidth"]
                     reqwidth = reqheight * 5  # 5 times longer to look like a line
@@ -71,10 +59,14 @@ class _Symbol:
                 else:
                     raise Exception("Symbol type not recognized")
 
-                # make sure to pass size to drawing func
-                self.kwargs["fillwidth"] = reqwidth
-                self.kwargs["fillheight"] = reqheight
+            # make sure to pass size to drawing func
+            self.kwargs["fillwidth"] = reqwidth
+            self.kwargs["fillheight"] = reqheight
 
+            # add outline to size (only affecting canvas size, not the draw size)
+            outlinewidth = info.get("outlinewidth") if info.get("outlinewidth") and info.get("outlinecolor") else 0
+            reqwidth += outlinewidth * 2
+            reqheight += outlinewidth * 2
 
         # create canvas and draw
         c = Canvas(width=reqwidth, height=reqheight)
@@ -88,8 +80,8 @@ class _Symbol:
             func = getattr(c, "draw_"+drawtype)
             func(xy=(x,y), anchor="center", **self.kwargs)
 
-        c.drawer.flush()
-        c.update_drawer_img() # STRANGE BUG, DOESNT RENDER UNLESS CALLING VIEW HERE...
+        c.drawer.flush() # STRANGE BUG, DOESNT RENDER UNLESS CALLING FLUSH HERE...
+        c.update_drawer_img()
 
         return c
 
@@ -126,7 +118,11 @@ class Label(_Symbol):
 
 class _BaseGroup:
     def __init__(self, items=None, direction="e", padding=0.05, anchor="center", **boxoptions):
-        print items
+
+        # TODO: make sure that direction and anchor dont contradict each other, since this leads to weird results
+        # eg direction s and anchor n
+        # ...
+        
         self.items = list(items) if items else []        
         self.direction = direction
         self.padding = padding
@@ -167,6 +163,8 @@ class _BaseGroup:
                 y = reqheight - padpx
             elif anchor in ("center","w","e"):
                 y = reqheight / 2.0
+            else:
+                raise Exception("Invalid anchor value")
             
             if direction == "w":
                 x = reqwidth - x # from the right
@@ -188,6 +186,8 @@ class _BaseGroup:
                 x = padpx
             elif anchor in ("center","n","s"):
                 x = reqwidth / 2.0
+            else:
+                raise Exception("Invalid anchor value")
             
             if direction == "n":
                 y = reqheight - y # from the bottom
@@ -213,6 +213,11 @@ class _BaseGroup:
                 y = padpx
             elif anchor == "s":
                 y = reqheight - padpx
+            else:
+                raise Exception("Invalid anchor value")
+
+        else:
+            raise Exception("Invalid direction value")
 
         # create the canvas
         c = Canvas(reqwidth, reqheight, background=None)
@@ -246,16 +251,17 @@ class _BaseGroup:
 class BaseGroup(_BaseGroup):
     # TODO: This is where title should be allowed
     # all others with titles or labels should inherit from this one
-    def __init__(self, items=None, title="", titleoptions=None, direction="e", padding=0.05, anchor="center", **boxoptions):
+    def __init__(self, refcanvas=None, items=None, title="", titleoptions=None, direction="e", padding=0.05, anchor="center", **boxoptions):
         print items
         self.items = []
 
         titleoptions = titleoptions or dict()
         if title:
-            obj = Label(text=title, **titleoptions)
+            obj = Label(text=title, refcanvas=refcanvas, **titleoptions)
             self.items.append(obj)
 
         # add a sub basegroup that contains the actual items
+        self.refcanvas = refcanvas
         self._basegroup = obj = _BaseGroup(items=items, direction=direction, padding=padding, anchor=anchor, **boxoptions)
         self.items.append(obj)
 
@@ -281,25 +287,137 @@ class BaseGroup(_BaseGroup):
     def add_item(self, item):
         self._basegroup.items.append(item)
 
-    def add_breakvalues(self, type, mode, breaks, classvalues, direction="s", anchor="w", title="", padding=0, labeloptions=None):
-        labeloptions = labeloptions or dict(side="e")
-        prevbrk = breaks[0]
-        group = SymbolGroup(direction=direction, anchor=anchor, title=title, padding=padding)
-        for i,nextbrk in enumerate(breaks[1:]):
-            group.add_item(Symbol(type=type, mode=mode,
-                                   label="%s to %s"%(prevbrk,nextbrk), labeloptions=labeloptions,
-                                   fillcolor=classvalues[i]))
-            prevbrk = nextbrk
-        self.add_item(group)
+    def add_fillcolors(self, shape, breaks, classvalues, valuetype="discrete", valueformat=None, direction="s", anchor="w", title="", padding=0, labeloptions=None, **symboloptions):
 
-class Symbol(BaseGroup):
-    def __init__(self, type, mode=None, refcanvas=None,
-                 label="", labeloptions=None,
-                 **symboloptions):
-        BaseGroup.__init__(self, title=label, titleoptions=labeloptions)
+        # NOTE: refcanvas is not inherited here, since this would lead to unexpected sizes after unit conversion
+        # TODO: maybe allow specific size units by splitting away unit, then calculating, then adding the unit back in
+        # ...
+
+        if valueformat:
+            # can be callable or formatstring
+            if not hasattr(valueformat, "__call__"):
+                # formatstring
+                frmtstring = "%" + valueformat
+                valueformat = lambda val: frmtstring % val
+            breaks = [valueformat(brk) for brk in breaks]
+
+        if valuetype == "continuous":
+            labeloptions = labeloptions or dict(side="e")
+            prevbrk = breaks[0]
+            group = SymbolGroup(direction=direction, anchor=anchor, title=title, padding=0)
+            for i,nextbrk in enumerate(breaks[1:]):
+                _symboloptions = dict(symboloptions)
+                _symboloptions.update(fillcolor=classvalues[i], outlinecolor=None)
+                obj = FillColorSymbol(shape=shape,
+                                       label="%s to %s"%(prevbrk,nextbrk), labeloptions=labeloptions,
+                                       padding=0, # crucial to make them into a continuous gradient
+                                       **_symboloptions)
+                group.add_item(obj)
+                prevbrk = nextbrk
+            self.add_item(group)
+            
+        elif valuetype == "discrete":
+            labeloptions = labeloptions or dict(side="e")
+            prevbrk = breaks[0]
+            group = SymbolGroup(direction=direction, anchor=anchor, title=title, padding=0)
+            for i,nextbrk in enumerate(breaks[1:]):
+                _symboloptions = dict(symboloptions)
+                _symboloptions.update(fillcolor=classvalues[i])
+                obj = FillColorSymbol(shape=shape,
+                                       label="%s to %s"%(prevbrk,nextbrk), labeloptions=labeloptions,
+                                       **_symboloptions)
+                group.add_item(obj)
+                prevbrk = nextbrk
+            self.add_item(group)
+
+        else:
+            raise Exception("Unknown valuetype")
+
+    def add_fillsizes(self, shape, breaks, classvalues, valuetype="discrete", valueformat=None, direction="s", anchor="w", title="", padding=0, labeloptions=None, **symboloptions):
         
-        obj = _Symbol(type=type, mode=mode, refcanvas=refcanvas, **symboloptions)
+        if valueformat:
+            # can be callable or formatstring
+            if not hasattr(valueformat, "__call__"):
+                # formatstring
+                frmtstring = "%" + valueformat
+                valueformat = lambda val: frmtstring % val
+            breaks = [valueformat(brk) for brk in breaks]
+
+        if valuetype == "continuous":
+            labeloptions = labeloptions or dict(side="e")
+            prevbrk = breaks[0]
+            group = SymbolGroup(direction="center", anchor=anchor, title=title, padding=0) # for continuous, sizes stay in one place
+            for i,nextbrk in enumerate(breaks[1:]):
+                _symboloptions = dict(symboloptions)
+                _symboloptions.update(fillsize=classvalues[i])
+                obj = FillSizeSymbol(shape=shape,
+                                       refcanvas=self.refcanvas, # draw sizes relative to refcanvas
+                                       label="%s to %s"%(prevbrk,nextbrk), labeloptions=labeloptions,
+                                       padding=0, # crucial to make them into a continuous gradient
+                                       **_symboloptions)
+                group.add_item(obj)
+                prevbrk = nextbrk
+            self.add_item(group)
+            
+        elif valuetype == "discrete":
+            labeloptions = labeloptions or dict(side="e")
+            prevbrk = breaks[0]
+            group = SymbolGroup(direction=direction, anchor=anchor, title=title, padding=0)
+            for i,nextbrk in enumerate(breaks[1:]):
+                _symboloptions = dict(symboloptions)
+                _symboloptions.update(fillsize=classvalues[i])
+                print _symboloptions
+                obj = FillSizeSymbol(shape=shape,
+                                       refcanvas=self.refcanvas, # draw sizes relative to refcanvas
+                                       label="%s to %s"%(prevbrk,nextbrk), labeloptions=labeloptions,
+                                       **_symboloptions)
+                group.add_item(obj)
+                prevbrk = nextbrk
+            self.add_item(group)
+
+        else:
+            raise Exception("Unknown valuetype")
+
+
+class FillSizeSymbol(BaseGroup):
+    def __init__(self, shape, refcanvas=None,
+                 label="", labeloptions=None,
+                 padding=0.05,
+                 **symboloptions):
+        labeloptions["padding"] = labeloptions.get("padding", padding)
+        BaseGroup.__init__(self, title=label, titleoptions=labeloptions, padding=padding)
+
+        if not "fillsize" in symboloptions:
+            raise Exception("Fillsize must be set when creating a FillSizeSymbol")
+        
+        symboloptions = dict(symboloptions)
+        symboloptions["fillcolor"] = symboloptions.get("fillcolor", None)
+        symboloptions["outlinecolor"] = symboloptions.get("outlinecolor", "black")
+        symboloptions["outlinewidth"] = symboloptions.get("outlinewidth", 1)
+        
+        obj = _Symbol(type=shape, refcanvas=refcanvas, **symboloptions)
         self.add_item(obj)
+
+
+class FillColorSymbol(BaseGroup):
+    def __init__(self, shape, refcanvas=None,
+                 label="", labeloptions=None,
+                 padding=0.05,
+                 **symboloptions):
+        labeloptions["padding"] = labeloptions.get("padding", padding)
+        BaseGroup.__init__(self, title=label, titleoptions=labeloptions, padding=padding)
+
+        if not "fillcolor" in symboloptions:
+            raise Exception("Fillcolor must be set when creating a FillColorSymbol")
+        
+        symboloptions = dict(symboloptions)
+        symboloptions["fillsize"] = symboloptions.get("fillsize", 20)
+        symboloptions["outlinecolor"] = symboloptions.get("outlinecolor", "black")
+        symboloptions["outlinewidth"] = symboloptions.get("outlinewidth", 1)
+        
+        obj = _Symbol(type=shape, refcanvas=refcanvas, **symboloptions)
+        self.add_item(obj)
+
 
 class SymbolGroup(BaseGroup):
     pass

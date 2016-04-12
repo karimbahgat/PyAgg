@@ -666,6 +666,7 @@ class Canvas:
         image size. Mostly used internally, but can be useful if you apply any PIL operations
         directly to the canvas image (the .img attribute). 
         """
+        ##self.drawer.flush()
         self.drawer = aggdraw.Draw(self.img)
         self.drawer.settransform(self.coordspace_transform)
 
