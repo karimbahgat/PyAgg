@@ -95,7 +95,7 @@ class Label(_Symbol):
     def render(self):
         # fillsize is used directly
         if self.refcanvas: 
-            info = dict(refcanvas._check_text_options(self.kwargs))
+            info = dict(self.refcanvas._check_text_options(self.kwargs))
         else:
             info = dict(Canvas(10,10)._check_text_options(self.kwargs))
 
@@ -262,12 +262,12 @@ class BaseGroup(_BaseGroup):
 
         # add a sub basegroup that contains the actual items
         self.refcanvas = refcanvas
-        self._basegroup = obj = _BaseGroup(items=items, direction=direction, padding=padding, anchor=anchor, **boxoptions)
+        self._basegroup = obj = _BaseGroup(items=items, direction=direction, padding=padding, anchor=anchor) #, **boxoptions)
         self.items.append(obj)
 
         # title anchor
         self.padding = titleoptions.get("padding", 0.05)
-        self.boxoptions = self._default_boxoptions(**{})
+        self.boxoptions = self._default_boxoptions(**boxoptions)
         side = titleoptions.get("side", "nw")
         # direction
         if side[0] == "n":
@@ -330,6 +330,18 @@ class BaseGroup(_BaseGroup):
                 prevbrk = nextbrk
             self.add_item(group)
 
+        elif valuetype == "categorical":
+            labeloptions = labeloptions or dict(side="e")
+            group = SymbolGroup(direction=direction, anchor=anchor, title=title, padding=0)
+            for category,classval in zip(breaks,classvalues):
+                _symboloptions = dict(symboloptions)
+                _symboloptions.update(fillcolor=classval)
+                obj = FillColorSymbol(shape=shape,
+                                       label="%s"%category, labeloptions=labeloptions,
+                                       **_symboloptions)
+                group.add_item(obj)
+            self.add_item(group)
+
         else:
             raise Exception("Unknown valuetype")
 
@@ -379,6 +391,20 @@ class BaseGroup(_BaseGroup):
             raise Exception("Unknown valuetype")
 
 
+class Symbol(BaseGroup):
+    def __init__(self, shape, refcanvas=None,
+                 label="", labeloptions=None,
+                 padding=0.05,
+                 **symboloptions):
+        labeloptions["padding"] = labeloptions.get("padding", padding)
+        BaseGroup.__init__(self, title=label, titleoptions=labeloptions, padding=padding)
+        
+        symboloptions = dict(symboloptions)
+        
+        obj = _Symbol(type=shape, refcanvas=refcanvas, **symboloptions)
+        self.add_item(obj)
+
+
 class FillSizeSymbol(BaseGroup):
     def __init__(self, shape, refcanvas=None,
                  label="", labeloptions=None,
@@ -404,7 +430,8 @@ class FillColorSymbol(BaseGroup):
                  label="", labeloptions=None,
                  padding=0.05,
                  **symboloptions):
-        labeloptions["padding"] = labeloptions.get("padding", padding)
+        labeloptions = labeloptions or dict()
+        if "padding" not in labeloptions: labeloptions["padding"] = padding
         BaseGroup.__init__(self, title=label, titleoptions=labeloptions, padding=padding)
 
         if not "fillcolor" in symboloptions:
