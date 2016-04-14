@@ -9,13 +9,14 @@ from .canvas import Canvas
 
 
 class _Symbol:
-    def __init__(self, type, refcanvas=None, **kwargs):
+    def __init__(self, type, refcanvas=None, anchor="center", **kwargs):
         """
         - Type is the type of geometry to draw, eg box, circle, etc.
         """
         self.type = type
         print "symbol",refcanvas
         self.refcanvas = refcanvas
+        self.anchor = anchor
         self.kwargs = dict(kwargs)
 
     def render(self):
@@ -78,7 +79,6 @@ class _Symbol:
         else:
             drawtype = "box" if self.type == "polygon" else self.type
             func = getattr(c, "draw_"+drawtype)
-            print "finalfinal",self.kwargs
             func(xy=(x,y), anchor="center", **self.kwargs)
 
         c.drawer.flush() # STRANGE BUG, DOESNT RENDER UNLESS CALLING FLUSH HERE...
@@ -88,9 +88,10 @@ class _Symbol:
 
 
 class Label(_Symbol):
-    def __init__(self, text, refcanvas=None, **kwargs):
+    def __init__(self, text, refcanvas=None, anchor="center", **kwargs):
         self.text = text
         self.refcanvas = refcanvas
+        self.anchor = anchor
         self.kwargs = dict(kwargs)
 
     def render(self):
@@ -142,81 +143,37 @@ class _BaseGroup:
         """
         direction = override.get("direction") or self.direction
         padding = override.get("padding") or self.padding
-        anchor = override.get("anchor") or self.anchor
         boxoptions = override.get("boxoptions") or self.boxoptions
 
-        rensymbols = [s.render() for s in self.items]
-        
+        rensymbols = [(s,s.render()) for s in self.items]
+
         if direction in ("e","w"):
-            reqwidth = sum((symbol.width for symbol in rensymbols))
-            reqheight = max((symbol.height for symbol in rensymbols))
+            reqwidth = sum((rendered.width for symbol,rendered in rensymbols))
+            reqheight = max((rendered.height for symbol,rendered in rensymbols))
 
             # padding
             padpx = reqwidth * padding
             reqwidth += padpx * (len(rensymbols)+1) # also pad start and end
             reqheight += padpx * 2 # also pad start and end
-
-            # anchoring
-            x = padpx + rensymbols[0].width / 2.0
-            if anchor == "n":
-                y = padpx
-            elif anchor == "s":
-                y = reqheight - padpx
-            elif anchor in ("center","w","e"):
-                y = reqheight / 2.0
-            else:
-                raise Exception("Invalid anchor value")
-            
-            if direction == "w":
-                x = reqwidth - x # from the right
             
         elif direction in ("n","s"):
-            reqwidth = max((symbol.width for symbol in rensymbols))
-            reqheight = sum((symbol.height for symbol in rensymbols))
+            reqwidth = max((rendered.width for symbol,rendered in rensymbols))
+            reqheight = sum((rendered.height for symbol,rendered in rensymbols))
 
             # padding
             padpx = reqheight * padding
             reqheight += padpx * (len(rensymbols)+1) # also pad start and end
             reqwidth += padpx * 2 # also pad start and end
-
-            # anchoring
-            y = padpx + rensymbols[0].height / 2.0
-            if anchor == "e":
-                x = reqwidth - padpx
-            elif anchor == "w":
-                x = padpx
-            elif anchor in ("center","n","s"):
-                x = reqwidth / 2.0
-            else:
-                raise Exception("Invalid anchor value")
-            
-            if direction == "n":
-                y = reqheight - y # from the bottom
                 
         elif direction == "center":
-            reqwidth = max((symbol.width for symbol in rensymbols))
-            reqheight = max((symbol.height for symbol in rensymbols))
+            reqwidth = max((rendered.width for symbol,rendered in rensymbols))
+            reqheight = max((rendered.height for symbol,rendered in rensymbols))
 
             # padding
             padpx = reqwidth * padding # aribtrary here that uses width since goes in two directions
             reqwidth += padpx * 2 # also pad start and end
             reqheight += padpx * 2 # also pad start and end
-
-            # anchoring
-            x = reqwidth / 2.0
-            y = reqheight / 2.0
             
-            if anchor == "e":
-                x = reqwidth - padpx
-            elif anchor == "w":
-                x = padpx
-            elif anchor == "n":
-                y = padpx
-            elif anchor == "s":
-                y = reqheight - padpx
-            else:
-                raise Exception("Invalid anchor value")
-
         else:
             raise Exception("Invalid direction value")
 
@@ -224,24 +181,96 @@ class _BaseGroup:
         c = Canvas(reqwidth, reqheight, background=None)
         c.draw_box(bbox=[0,0,reqwidth-1,reqheight-1], **boxoptions)
 
+        # define anchoring
+        if direction in ("e","w"):
+            def anchorfunc(symbol, rendered):
+                # anchoring
+                anchor = symbol.anchor
+                x = padpx + rendered.width / 2.0
+                if anchor == "n":
+                    y = padpx
+                elif anchor == "s":
+                    y = reqheight - padpx
+                elif anchor in ("center","w","e"):
+                    y = reqheight / 2.0
+                else:
+                    raise Exception("Invalid anchor value")
+
+                return x,y
+
+            symbol,rendered = rensymbols[0]
+            x,y = anchorfunc(symbol,rendered)
+            if direction == "w":
+                x = reqwidth - x # from the right
+
+        elif direction in ("n","s"):
+            def anchorfunc(symbol, rendered):
+                # anchoring
+                anchor = symbol.anchor
+                y = padpx + rendered.height / 2.0
+                if anchor == "e":
+                    x = reqwidth - padpx
+                elif anchor == "w":
+                    x = padpx
+                elif anchor in ("center","n","s"):
+                    x = reqwidth / 2.0
+                else:
+                    raise Exception("Invalid anchor value")
+
+                return x,y
+
+            symbol,rendered = rensymbols[0]
+            x,y = anchorfunc(symbol,rendered)
+            print "start",x,y
+            if direction == "n":
+                y = reqheight - y # from the bottom
+
+        elif direction == "center":
+            def anchorfunc(symbol, rendered):
+                # anchoring
+                anchor = symbol.anchor
+                x = reqwidth / 2.0
+                y = reqheight / 2.0
+                
+                if anchor == "e":
+                    x = reqwidth - padpx
+                elif anchor == "w":
+                    x = padpx
+                elif anchor == "n":
+                    y = padpx
+                elif anchor == "s":
+                    y = reqheight - padpx
+                else:
+                    raise Exception("Invalid anchor value")
+
+                return x,y
+
+            symbol,rendered = rensymbols[0]
+            x,y = anchorfunc(symbol,rendered)
+
+        else:
+            raise Exception("Invalid direction value")
+
         # draw in direction
-        for symbol in rensymbols:
-            c.paste(symbol, (x,y), anchor=anchor)
-            # TODO: fix error where semitransparent colors disappear entirely when pasting
-            # ...
+        for i,(symbol,rendered) in enumerate(rensymbols):
+            xoff,yoff = anchorfunc(symbol, rendered)
+            print "off",xoff,yoff
+            c.paste(rendered, (x+xoff,y+yoff), anchor=symbol.anchor)
+            print "final",x+xoff,y+yoff
             
             # increment to next symbol position
-            nextindex = rensymbols.index(symbol)+1
-            nextsymbol = rensymbols[nextindex] if nextindex < len(rensymbols) else None
-            if nextsymbol:
+            nextindex = i+1
+            nextitem = rensymbols[nextindex] if nextindex < len(rensymbols) else None
+            if nextitem:
+                nextsymbol,nextrendered = nextitem
                 if direction == "e":
-                    x += padpx + symbol.width / 2.0 + nextsymbol.width / 2.0
+                    x += padpx + rendered.width / 2.0 + nextrendered.width / 2.0
                 elif direction == "w":
-                    x -= padpx + symbol.width / 2.0 + nextsymbol.width  / 2.0
+                    x -= padpx + rendered.width / 2.0 + nextrendered.width  / 2.0
                 elif direction == "s":
-                    y += padpx + symbol.height / 2.0 + nextsymbol.height / 2.0
+                    y += padpx + rendered.height / 2.0 + nextrendered.height / 2.0
                 elif direction == "n":
-                    y -= padpx + symbol.height / 2.0 + nextsymbol.height / 2.0
+                    y -= padpx + rendered.height / 2.0 + nextrendered.height / 2.0
 
         return c
 
@@ -290,14 +319,11 @@ class BaseGroup(_BaseGroup):
     def add_item(self, item):
         self._basegroup.items.append(item)
 
-    def add_fillcolors(self, shape, breaks, classvalues, valuetype="discrete", valueformat=None, direction="s", anchor="w", title="", titleoptions=None, padding=0, labeloptions=None, **symboloptions):
+    def add_fillcolors(self, shape, breaks, classvalues, valuetype="discrete", valueformat=None, direction="s", anchor="w", title="", padding=0, labeloptions=None, **symboloptions):
 
         # NOTE: refcanvas is not inherited here, since this would lead to unexpected sizes after unit conversion
         # TODO: maybe allow specific size units by splitting away unit, then calculating, then adding the unit back in
         # ...
-
-        labeloptions = labeloptions or dict()
-        
 
         if valueformat:
             # can be callable or formatstring
@@ -308,9 +334,9 @@ class BaseGroup(_BaseGroup):
             breaks = [valueformat(brk) for brk in breaks]
 
         if valuetype == "continuous":
-            if not "side" in labeloptions: labeloptions["side"] = "e"
+            labeloptions = labeloptions or dict(side="e")
             prevbrk = breaks[0]
-            group = SymbolGroup(direction=direction, anchor=anchor, title=title, titleoptions=titleoptions, padding=0)
+            group = SymbolGroup(direction=direction, anchor=anchor, title=title, padding=0)
             for i,nextbrk in enumerate(breaks[1:]):
                 _symboloptions = dict(symboloptions)
                 _symboloptions.update(fillcolor=classvalues[i], outlinecolor=None)
@@ -323,9 +349,9 @@ class BaseGroup(_BaseGroup):
             self.add_item(group)
             
         elif valuetype == "discrete":
-            if not "side" in labeloptions: labeloptions["side"] = "e"
+            labeloptions = labeloptions or dict(side="e")
             prevbrk = breaks[0]
-            group = SymbolGroup(direction=direction, anchor=anchor, title=title, titleoptions=titleoptions, padding=0)
+            group = SymbolGroup(direction=direction, anchor=anchor, title=title, padding=0)
             for i,nextbrk in enumerate(breaks[1:]):
                 _symboloptions = dict(symboloptions)
                 _symboloptions.update(fillcolor=classvalues[i])
@@ -337,8 +363,8 @@ class BaseGroup(_BaseGroup):
             self.add_item(group)
 
         elif valuetype == "categorical":
-            if not "side" in labeloptions: labeloptions["side"] = "e"
-            group = SymbolGroup(direction=direction, anchor=anchor, title=title, titleoptions=titleoptions, padding=0)
+            labeloptions = labeloptions or dict(side="e")
+            group = SymbolGroup(direction=direction, anchor=anchor, title=title, padding=0)
             for category,classval in zip(breaks,classvalues):
                 _symboloptions = dict(symboloptions)
                 _symboloptions.update(fillcolor=classval)
@@ -351,10 +377,8 @@ class BaseGroup(_BaseGroup):
         else:
             raise Exception("Unknown valuetype")
 
-    def add_fillsizes(self, shape, breaks, classvalues, valuetype="discrete", valueformat=None, direction="s", anchor="w", title="", titleoptions=None, padding=0, labeloptions=None, **symboloptions):
+    def add_fillsizes(self, shape, breaks, classvalues, valuetype="discrete", valueformat=None, direction="s", anchor="w", title="", padding=0, labeloptions=None, **symboloptions):
         
-        labeloptions = labeloptions or dict()
-
         if valueformat:
             # can be callable or formatstring
             if not hasattr(valueformat, "__call__"):
@@ -364,9 +388,9 @@ class BaseGroup(_BaseGroup):
             breaks = [valueformat(brk) for brk in breaks]
 
         if valuetype == "continuous":
-            if not "side" in labeloptions: labeloptions["side"] = "e"
+            labeloptions = labeloptions or dict(side="e")
             prevbrk = breaks[0]
-            group = SymbolGroup(direction="center", anchor=anchor, title=title, titleoptions=titleoptions, padding=0) # for continuous, sizes stay in one place
+            group = SymbolGroup(direction="center", anchor=anchor, title=title, padding=0) # for continuous, sizes stay in one place
             for i,nextbrk in enumerate(breaks[1:]):
                 _symboloptions = dict(symboloptions)
                 _symboloptions.update(fillsize=classvalues[i])
@@ -380,9 +404,9 @@ class BaseGroup(_BaseGroup):
             self.add_item(group)
             
         elif valuetype == "discrete":
-            if not "side" in labeloptions: labeloptions["side"] = "e"
+            labeloptions = labeloptions or dict(side="e")
             prevbrk = breaks[0]
-            group = SymbolGroup(direction=direction, anchor=anchor, title=title, titleoptions=titleoptions, padding=0)
+            group = SymbolGroup(direction=direction, anchor=anchor, title=title, padding=0)
             for i,nextbrk in enumerate(breaks[1:]):
                 _symboloptions = dict(symboloptions)
                 _symboloptions.update(fillsize=classvalues[i])
@@ -427,11 +451,10 @@ class FillSizeSymbol(BaseGroup):
             raise Exception("Fillsize must be set when creating a FillSizeSymbol")
         
         symboloptions = dict(symboloptions)
-        print "prefinal",symboloptions,type(symboloptions["fillcolor"])
         symboloptions["fillcolor"] = symboloptions.get("fillcolor", None)
         symboloptions["outlinecolor"] = symboloptions.get("outlinecolor", "black")
         symboloptions["outlinewidth"] = symboloptions.get("outlinewidth", 1)
-        print "final",symboloptions
+        
         obj = _Symbol(type=shape, refcanvas=refcanvas, **symboloptions)
         self.add_item(obj)
 

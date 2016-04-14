@@ -4,7 +4,7 @@ from pyagg import Canvas
 
 
 
-legend = Legend(direction="s", anchor="w",
+legend = Legend(direction="s",
                 title="Legend", titleoptions=dict(font="calibri", textsize=20, side="w"),
                 )
 
@@ -43,7 +43,7 @@ legend = Legend(direction="s", anchor="w",
 ##    return c
 ##legend.add_item(Label("SymbolGroup 3", font="calibri", textsize=20))
 
-sideways = SymbolGroup(direction="e", anchor="s",
+sideways = SymbolGroup(direction="e", anchor="w",
                        #title="SymbolGroup3", titleoptions=dict(font="calibri", textsize=20))
                        )
 
@@ -61,12 +61,12 @@ sideways = SymbolGroup(direction="e", anchor="s",
 ##                 anchor="center",
 ##                 )
 gr = SymbolGroup(title="Circle fillsize",
-                items=[FillSizeSymbol("circle",fillsize=300,outlinewidth=10,label="Symbol 3",labeloptions=dict(side="ne")),
-                         FillSizeSymbol("circle",fillsize=200,outlinewidth=10,label="Symbol 2"),
-                         FillSizeSymbol("circle",fillsize=100,outlinewidth=10,label="Symbol 1"),
+                items=[FillSizeSymbol("circle",fillsize=300,outlinewidth=10,label="Symbol 3",anchor="center",labeloptions=dict(side="ne")),
+                         FillSizeSymbol("circle",fillsize=200,outlinewidth=10,label="Symbol 2",anchor="center"),
+                         FillSizeSymbol("circle",fillsize=100,outlinewidth=10,label="Symbol 1",anchor="center"),
                         ],
                  direction="s",
-                 anchor="center",
+                 anchor="s",
                  fillcolor="blue",
                  )
 sideways.add_item(gr)
