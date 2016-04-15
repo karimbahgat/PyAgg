@@ -303,8 +303,9 @@ class BaseGroup(_BaseGroup):
             # can be callable or formatstring
             if not hasattr(valueformat, "__call__"):
                 # formatstring
-                frmtstring = "%" + valueformat
-                valueformat = lambda val: frmtstring % val
+                frmtstring = valueformat
+                if not frmtstring.startswith(","): frmtstring = ","+frmtstring # adds thousand separator
+                valueformat = lambda val: format(val, frmtstring)
             breaks = [valueformat(brk) for brk in breaks]
 
         if valuetype == "continuous":
@@ -331,6 +332,7 @@ class BaseGroup(_BaseGroup):
                 _symboloptions.update(fillcolor=classvalues[i])
                 obj = FillColorSymbol(shape=shape,
                                        label="%s to %s"%(prevbrk,nextbrk), labeloptions=labeloptions,
+                                      padding=padding,
                                        **_symboloptions)
                 group.add_item(obj)
                 prevbrk = nextbrk
@@ -344,6 +346,7 @@ class BaseGroup(_BaseGroup):
                 _symboloptions.update(fillcolor=classval)
                 obj = FillColorSymbol(shape=shape,
                                        label="%s"%category, labeloptions=labeloptions,
+                                      padding=padding,
                                        **_symboloptions)
                 group.add_item(obj)
             self.add_item(group)
@@ -359,8 +362,9 @@ class BaseGroup(_BaseGroup):
             # can be callable or formatstring
             if not hasattr(valueformat, "__call__"):
                 # formatstring
-                frmtstring = "%" + valueformat
-                valueformat = lambda val: frmtstring % val
+                frmtstring = valueformat
+                if not frmtstring.startswith(","): frmtstring = ","+frmtstring # adds thousand separator
+                valueformat = lambda val: format(val, frmtstring)
             breaks = [valueformat(brk) for brk in breaks]
 
         if valuetype == "continuous":
@@ -390,6 +394,7 @@ class BaseGroup(_BaseGroup):
                 obj = FillSizeSymbol(shape=shape,
                                        refcanvas=self.refcanvas, # draw sizes relative to refcanvas
                                        label="%s to %s"%(prevbrk,nextbrk), labeloptions=labeloptions,
+                                     padding=padding,
                                        **_symboloptions)
                 group.add_item(obj)
                 prevbrk = nextbrk
