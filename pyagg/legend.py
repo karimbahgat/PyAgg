@@ -36,7 +36,7 @@ class _Symbol:
                 info = dict(self.refcanvas._check_options(self.kwargs))
                 print info
                 if self.type == "line":
-                    reqheight = info["fillsize"]+info["outlinewidth"]
+                    reqheight = info["fillsize"]
                     reqwidth = reqheight * 5  # 5 times longer to look like a line
                 else:
                     reqwidth = info["fillwidth"]
@@ -51,7 +51,7 @@ class _Symbol:
                 elif self.type in ("circle","pie"):
                     reqwidth,reqheight = info["fillwidth"]*2,info["fillheight"]*2
                 elif self.type == "line":
-                    reqheight = info["fillsize"]+info["outlinewidth"]
+                    reqheight = info["fillsize"]
                     reqwidth = reqheight * 5  # 5 times longer to look like a line
                 elif self.type == "polygon":
                     reqheight = info["fillheight"]
@@ -76,7 +76,7 @@ class _Symbol:
         if hasattr(self.type, "__call__"):
             c.paste(rendered, (x,y), anchor="center")
         else:
-            drawtype = "box" if self.type == "polygon" else self.type
+            drawtype = "box" if self.type in ("polygon","line") else self.type
             func = getattr(c, "draw_"+drawtype)
             print "finalfinal",self.kwargs
             func(xy=(x,y), anchor="center", **self.kwargs)
