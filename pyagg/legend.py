@@ -290,6 +290,30 @@ class BaseGroup(_BaseGroup):
     def add_item(self, item):
         self._basegroup.items.append(item)
 
+    def add_symbol(self, shape, label="", labeloptions=None, padding=0.05, **symboloptions):
+        labeloptions = labeloptions or dict()
+        if not "side" in labeloptions: labeloptions["side"] = "e"
+        obj = Symbol(shape=shape,
+                       refcanvas=self.refcanvas, # draw sizes relative to refcanvas
+                       label=label, labeloptions=labeloptions,
+                       **symboloptions)
+        self.add_item(obj)
+
+    def add_symbols(self, symbols, direction="s", anchor="w", title="", titleoptions=None, padding=0, labeloptions=None):
+        """- symbols is sequence of shape,label,symboloptions tuples"""
+        labeloptions = labeloptions or dict()
+
+        if not "side" in labeloptions: labeloptions["side"] = "e"
+        group = SymbolGroup(direction="center", anchor=anchor, title=title, titleoptions=titleoptions, padding=0) # for continuous, sizes stay in one place
+        for shape,label,symboloptions in symbols:
+            _symboloptions = dict(symboloptions)
+            obj = Symbol(shape=shape,
+                           refcanvas=self.refcanvas, # draw sizes relative to refcanvas
+                           label=label, labeloptions=labeloptions,
+                           **_symboloptions)
+            group.add_item(obj)
+        self.add_item(group)
+
     def add_fillcolors(self, shape, breaks, classvalues, valuetype="discrete", valueformat=None, direction="s", anchor="w", title="", titleoptions=None, padding=0, labeloptions=None, **symboloptions):
 
         # NOTE: refcanvas is not inherited here, since this would lead to unexpected sizes after unit conversion
@@ -298,7 +322,6 @@ class BaseGroup(_BaseGroup):
 
         labeloptions = labeloptions or dict()
         
-
         if valueformat:
             # can be callable or formatstring
             if not hasattr(valueformat, "__call__"):
