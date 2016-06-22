@@ -69,7 +69,19 @@ There is also support for common domain specific data visualization:
 Platforms
 ---------
 
-Python 2.6, 2.7.
+Python 2.6 and 2.7
+
+PyAgg relies on the aggdraw Python C++ wrapper, and as a convenience
+comes with aggdraw precompiled for the following platforms:
+
+-  Python 2.6 (Windows: 32-bit only, Mac and Linux: No support)
+-  Python 2.7 (Windows: 32 and 64-bit, Mac and Linux: 64-bit only)
+
+Note: Mac and Linux support has not been fully tested, and there are
+some reports of problems on Linux.
+
+You can get around these limitations by compiling aggdraw on your own,
+in which case PyAgg should work on any machine that you compile for.
 
 Dependencies
 ------------
@@ -156,10 +168,22 @@ license, see license.txt
 Credits:
 --------
 
-Karim Bahgat (2015)
+Karim Bahgat (2016)
 
 Changes
 -------
 
+0.2.0 (2016-06-22)
+~~~~~~~~~~~~~~~~~~
+
+-  Plenty of (undocumented) feature additions, including some unfinished
+   ones
+-  Replaced heavy fontTools dependency with a more lightweight font
+   locator
+-  Fixed some bugs improving platform support for Mac and Linux (though
+   not fully tested)
+
 0.1 (2016-03-28)
 ~~~~~~~~~~~~~~~~
+
+-  First basic release

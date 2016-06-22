@@ -1,5 +1,12 @@
 
 ## Changes
 
+### 0.2.0 (2016-06-22)
+
+- Plenty of (undocumented) feature additions, including some unfinished ones
+- Replaced heavy fontTools dependency with a more lightweight font locator
+- Fixed some bugs improving platform support for Mac and Linux (though not fully tested)
+
 ### 0.1 (2016-03-28)
 
+- First basic release

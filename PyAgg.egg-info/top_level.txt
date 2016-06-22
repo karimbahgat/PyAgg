@@ -1,0 +1,12 @@
+pyagg
+pyagg/precompiled
+pyagg/precompiled/unix
+pyagg/precompiled/unix/bit64
+pyagg/precompiled/unix/bit64/py27
+pyagg/precompiled/win
+pyagg/precompiled/win/bit32
+pyagg/precompiled/win/bit32/py26
+pyagg/precompiled/win/bit32/py27
+pyagg/precompiled/win/bit64
+pyagg/precompiled/win/bit64/py26
+pyagg/precompiled/win/bit64/py27

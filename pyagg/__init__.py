@@ -56,7 +56,19 @@ computer scientists, including linegraph, scatterplot, histogram, etc, although 
 
 ## Platforms
 
-Python 2.6, 2.7. 
+Python 2.6 and 2.7
+
+PyAgg relies on the aggdraw Python C++ wrapper, and as a convenience comes with
+aggdraw precompiled for the following platforms:
+
+- Python 2.6 (Windows: 32-bit only, Mac and Linux: No support)
+- Python 2.7 (Windows: 32 and 64-bit, Mac and Linux: 64-bit only)
+
+Note: Mac and Linux support has not been fully tested, and there are some reports of
+problems on Linux. 
+
+You can get around these limitations by compiling aggdraw on your own, in which case
+PyAgg should work on any machine that you compile for.
 
 
 ## Dependencies
@@ -129,10 +141,10 @@ and modify according to the MIT license, see license.txt
 
 ## Credits:
 
-Karim Bahgat (2015)
+Karim Bahgat (2016)
 """
 
-__version__ = "0.1"
+__version__ = "0.2.0"
 
 from .canvas import Canvas, load
 from .graph import LineGraph

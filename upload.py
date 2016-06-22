@@ -19,10 +19,12 @@ pipy.define_upload(packpath,
                                 "Topic :: Scientific/Engineering :: Visualization",
                                 "Topic :: Multimedia :: Graphics",
                                 "Topic :: Scientific/Engineering :: GIS"],
-                   changes=[],
+                   changes=["Plenty of (undocumented) feature additions, including some unfinished ones",
+                            "Replaced heavy fontTools dependency with a more lightweight font locator",
+                            "Fixed some bugs improving platform support for Mac and Linux (though not fully tested)"],
                    )
 
 #pipy.upload_test(packpath)
-pipy.generate_docs(packpath)
+#pipy.generate_docs(packpath)
 
-#pipy.upload(packpath)
+pipy.upload(packpath)
