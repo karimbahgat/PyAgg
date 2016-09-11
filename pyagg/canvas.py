@@ -1849,6 +1849,9 @@ class Canvas:
             Padx is used with the bbox argument or when using xy with fillcolor or outlinecolor and specifies the percent x padding between the text and the box.
             Pady is used with the bbox argument or when using xy with fillcolor or outlinecolor and specifies the percent y padding between the text and the box.
         """
+        if not text:
+            return False
+        
         options = self._check_text_options(options)
 
         if xy:
@@ -1989,6 +1992,9 @@ class Canvas:
             xmax,ymax = max((x1,x2)),max((y1,y2))
             boxwidth = xmax - xmin
             boxheight = ymax - ymin
+            if boxwidth < 5 or boxheight < 5:
+                # box to write text is so small that it doesnt fit in five pixel, dont draw
+                return None
 
             #### use pad args to determine new smaller bbox
             # padx

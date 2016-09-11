@@ -14,7 +14,6 @@ class _Symbol:
         - Type is the type of geometry to draw, eg box, circle, etc.
         """
         self.type = type
-        print "symbol",refcanvas
         self.refcanvas = refcanvas
         self.kwargs = dict(kwargs)
 
@@ -32,9 +31,8 @@ class _Symbol:
         else:
             # symbol is specified with the canvas method type and args (more convenient)
             if self.refcanvas:
-                print self.kwargs
+                # dimensions autoretrieved and converted to pixels from refcanvas
                 info = dict(self.refcanvas._check_options(self.kwargs))
-                print info
                 if self.type == "line":
                     reqheight = info["fillsize"]
                     reqwidth = reqheight * 5  # 5 times longer to look like a line
@@ -42,6 +40,7 @@ class _Symbol:
                     reqwidth = info["fillwidth"]
                     reqheight = info["fillheight"]
             else:
+                # user has to specify size manually
                 info = dict(self.kwargs)
                 info.update(fillwidth=info["fillsize"], fillheight=info["fillsize"])
 
@@ -78,7 +77,6 @@ class _Symbol:
         else:
             drawtype = "box" if self.type in ("polygon","line") else self.type
             func = getattr(c, "draw_"+drawtype)
-            print "finalfinal",self.kwargs
             func(xy=(x,y), anchor="center", **self.kwargs)
 
         c.drawer.flush() # STRANGE BUG, DOESNT RENDER UNLESS CALLING FLUSH HERE...
@@ -255,7 +253,6 @@ class BaseGroup(_BaseGroup):
     # TODO: This is where title should be allowed
     # all others with titles or labels should inherit from this one
     def __init__(self, refcanvas=None, items=None, title="", titleoptions=None, direction="e", padding=0.05, anchor="center", **boxoptions):
-        print items
         self.items = []
 
         titleoptions = titleoptions or dict()
@@ -413,7 +410,6 @@ class BaseGroup(_BaseGroup):
             for i,nextbrk in enumerate(breaks[1:]):
                 _symboloptions = dict(symboloptions)
                 _symboloptions.update(fillsize=classvalues[i])
-                print _symboloptions
                 obj = FillSizeSymbol(shape=shape,
                                        refcanvas=self.refcanvas, # draw sizes relative to refcanvas
                                        label="%s to %s"%(prevbrk,nextbrk), labeloptions=labeloptions,
@@ -455,11 +451,9 @@ class FillSizeSymbol(BaseGroup):
             raise Exception("Fillsize must be set when creating a FillSizeSymbol")
         
         symboloptions = dict(symboloptions)
-        print "prefinal",symboloptions,type(symboloptions["fillcolor"])
         symboloptions["fillcolor"] = symboloptions.get("fillcolor", None)
         symboloptions["outlinecolor"] = symboloptions.get("outlinecolor", "black")
         symboloptions["outlinewidth"] = symboloptions.get("outlinewidth", 1)
-        print "final",symboloptions
         obj = _Symbol(type=shape, refcanvas=refcanvas, **symboloptions)
         self.add_item(obj)
 
