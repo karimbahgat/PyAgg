@@ -2136,13 +2136,18 @@ class Canvas:
         if geojson["type"] == "Feature":
             geojson = geojson["geometry"]
             
+        if "shape" in options:
+            draw_point = getattr(self, "draw_%s" % options["shape"])
+        else:
+            draw_point = self.draw_circle
+
         geotype = geojson["type"]
         coords = geojson["coordinates"]
         if geotype == "Point":
-            self.draw_circle(xy=coords, **options)
+            draw_point(xy=coords, **options)
         elif geotype == "MultiPoint":
             for point in coords:
-                self.draw_circle(xy=point, **options)
+                draw_point(xy=point, **options)
         elif geotype == "LineString":
             self.draw_line(coords=coords, **options)
         elif geotype == "MultiLineString":
