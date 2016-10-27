@@ -117,6 +117,183 @@ def _floatrange(start, end, interval):
             yield cur
             cur -= interval
 
+class _Line:
+    def __init__(self, x1,y1,x2,y2):
+        self.x1,self.y1,self.x2,self.y2 = x1,y1,x2,y2
+        self.xdiff = x2-x1
+        self.ydiff = y2-y1
+        try:
+            self.slope = self.ydiff/float(self.xdiff)
+            self.zero_y = self.slope*(0-x1)+y1
+        except ZeroDivisionError:
+            self.slope = None
+            self.zero_y = None
+    def __str__(self):
+        return str(self.tolist())
+    @property
+    def start(self):
+        return (self.x1,self.y1)
+    @property
+    def end(self):
+        return (self.x2,self.y2)    
+    def tolist(self):
+        return (self.start,self.end)
+    def intersect(self, otherline, infinite=False):
+        """
+        Input must be another line instance
+        Finds real or imaginary intersect assuming lines go forever, regardless of real intersect
+        Infinite is based on http://stackoverflow.com/questions/20677795/find-the-point-of-intersecting-lines
+        Real is based on http://stackoverflow.com/questions/18234049/determine-if-two-lines-intersect
+        """
+        if infinite:
+            D  = -self.ydiff * otherline.xdiff - self.xdiff * -otherline.ydiff
+            Dx = self._selfprod() * otherline.xdiff - self.xdiff * otherline._selfprod()
+            Dy = -self.ydiff * otherline._selfprod() - self._selfprod() * -otherline.ydiff
+            if D != 0:
+                x = Dx / D
+                y = Dy / D
+                return x,y
+            else:
+                return False
+        else:
+            # MANUAL APPROACH
+            # http://stackoverflow.com/questions/18234049/determine-if-two-lines-intersect
+            if self.slope == None:
+                if otherline.slope == None:
+                    return False
+                ix = self.x1
+                iy = ix*otherline.slope+otherline.zero_y
+            elif otherline.slope == None:
+                ix = otherline.x1
+                iy = ix*self.slope+self.zero_y
+            else:
+                try:
+                    ix = (otherline.zero_y-self.zero_y) / (self.slope-otherline.slope)
+                except ZeroDivisionError:
+                    #slopes are exactly the same so never intersect
+                    return False
+                iy = ix*self.slope+self.zero_y
+
+            #check that intsec happens within bbox of both lines
+            if ix >= min(self.x1,self.x2) and ix >= min(otherline.x1,otherline.x2)\
+            and ix <= max(self.x1,self.x2) and ix <= max(otherline.x1,otherline.x2)\
+            and iy >= min(self.y1,self.y2) and iy >= min(otherline.y1,otherline.y2)\
+            and iy <= max(self.y1,self.y2) and iy <= max(otherline.y1,otherline.y2):
+                return ix,iy
+            else:
+                return False
+    def distance2point(self, point, getpoint=False, relativedist=False):
+        """
+        - point is a _Point instance with x and y attributes
+        - getpoint, when True will not only return the distance but also the point on the line that was closest, in a tuple (dist, _Point instance)
+        - relativedist, if comparing many distances is more important than getting the actual distance then this can be set to True which will return the squared distance without the squareroot which makes it faster
+        """
+        x3,y3 = point.x,point.y
+        x1,y1,x2,y2 = self.x1,self.y1,self.x2,self.y2
+        #below is taken directly from http://stackoverflow.com/questions/849211/shortest-distance-between-a-point-and-a-line-segment
+        px = x2-x1
+        py = y2-y1
+        something = px*px + py*py
+        u =  ((x3 - x1) * px + (y3 - y1) * py) / float(something)
+        if u > 1:
+            u = 1
+        elif u < 0:
+            u = 0
+        x = x1 + u * px
+        y = y1 + u * py
+        dx = x - x3
+        dy = y - y3
+        #prepare results
+        if relativedist: dist = dx*dx + dy*dy
+        else: dist = math.sqrt(dx*dx + dy*dy)
+        if getpoint: result = (dist,_Point(x,y))
+        else: result = dist
+        return result
+    def getlength(self):
+        return math.hypot(self.xdiff,self.ydiff)
+    def getangle(self):
+        "hmm, sometimes returns negative angles instead of converting..."
+        try:
+            angle = math.degrees(math.atan(self.ydiff/float(self.xdiff)))
+            if self.xdiff < 0:
+                angle = 180 - angle
+            else:
+                angle *= -1
+        except ZeroDivisionError:
+            if self.ydiff < 0:
+                angle = 90
+            elif self.ydiff > 0:
+                angle = 270
+            else:
+                raise TypeError("error: the vector isnt moving anywhere, so has no angle")
+        if angle < 0:
+            angle = 360+angle
+        return angle
+    def walkdistance(self, distance):
+        angl_rad = math.radians(self.getangle())
+        xbuff = distance * math.cos(angl_rad)
+        ybuff = distance * math.sin(angl_rad)
+        newx = self.x2-xbuff
+        newy = self.y2+ybuff
+        return (newx,newy)
+    def getbuffersides(self, linebuffer):
+        x1,y1,x2,y2 = self.x1,self.y1,self.x2,self.y2
+        midline = _Line(x1,y1,x2,y2)
+        angl = midline.getangle()
+        perpangl_rad = math.radians(angl-90) #perpendicular angle in radians
+        xbuff = linebuffer * math.cos(perpangl_rad)
+        ybuff = linebuffer * math.sin(perpangl_rad)
+        #xs
+        leftx1 = (x1-xbuff)
+        leftx2 = (x2-xbuff)
+        rightx1 = (x1+xbuff)
+        rightx2 = (x2+xbuff)
+        #ys
+        lefty1 = (y1+ybuff)
+        lefty2 = (y2+ybuff)
+        righty1 = (y1-ybuff)
+        righty2 = (y2-ybuff)
+        #return lines
+        leftline = _Line(leftx1,lefty1,leftx2,lefty2)
+        rightline = _Line(rightx1,righty1,rightx2,righty2)
+        return leftline,rightline
+    def anglediff(self, otherline):
+        """
+        not complete.
+        - is left turn, + is right turn
+        """
+        angl1 = self.getangle()
+        angl2 = otherline.getangle()
+        bwangl_rel = angl1-angl2 # - is left turn, + is right turn
+        #make into shortest turn direction
+        if bwangl_rel < -180:
+            bwangl_rel = bwangl_rel+360
+        elif bwangl_rel > 180:
+            bwangl_rel = bwangl_rel-360
+        return bwangl_rel
+    def anglebetween_inner(self, otherline):
+        "not complete"
+        crossvecx = self.ydiff-otherline.ydiff
+        crossvecy = otherline.xdiff-self.xdiff
+        line = _Line(self.x2,self.y2,self.x2+crossvecx,self.y2+crossvecy)
+        bwangl = line.getangle()
+        return bwangl
+    def anglebetween_outer(self, otherline):
+        "not complete"
+        bwangl = self.anglebetween_inner(otherline)
+        if bwangl > 180:
+            normangl = bwangl-180
+        else:
+            normangl = 180+bwangl
+        return normangl
+    
+    #INTERNAL USE ONLY
+    def _selfprod(self):
+        """
+        Used by the line intersect method
+        """
+        return -(self.x1*self.y2 - self.x2*self.y1)
+
 class Gradient:
     def __init__(self, colorstops):
         self.colorstops = colorstops
@@ -1688,7 +1865,7 @@ class Canvas:
         
         self.drawer.rectangle(bbox, *args)
 
-    def draw_line(self, coords, smooth=False, **options):
+    def draw_line(self, coords, smooth=False, volume=None, start="flat", end="flat", **options):
         """
         Connect a series of coordinate points with one or more lines.
         Outline does not work with this method.
@@ -1710,73 +1887,560 @@ class Canvas:
         if not hasattr(coords[0], "__iter__"):
             coords = _grouper(coords, 2)
         else: coords = (point for point in coords)
-        
-        # get drawing tools from options
-        args = []
-        if options["fillcolor"]:
-            pen = aggdraw.Pen(options["fillcolor"], options["fillsize"])
-            args.append(pen)
 
-        if smooth:
+        if volume or (options.get("outlinecolor") and options.get("outlinewidth")):
+            # enables outline and varying line volume thickness
 
-            # Note: Creation of the aggdraw.Symbol object here can be
-            # very slow for long lines; Path is much faster but due
-            # to a bug it does not correctly render curves, hence the use
-            # of Symbol
+            def convertvolume(val):
+                return units.parse_dist(val,
+                                         ppi=self.ppi,
+                                         default_unit=self.default_unit,
+                                         canvassize=[self.width,self.height],
+                                         coordsize=[self.coordspace_width,self.coordspace_height])
 
-            # Todo: Maybe use smooth bezier instead which passes through
-            # the full start and end points and still connects them smoothly.
-##            pathstring = ""
-##            coords = (c for c in coords)
-##            pathstring += " M%s,%s" %next(coords)
-##            pathstring += " L%s,%s" %next(coords)
-##            # for each line
-##            for nextx,nexty in coords:
-##                pathstring += " T%s,%s" %(nextx,nexty)
-            
-            pathstring = ""
-            
-            # begin
-            coords = _pairwise(coords)
-            (startx,starty),(endx,endy) = next(coords)
-            pathstring += " M%s,%s" %(startx, starty)
-            
-            # draw straight line to first line midpoint
-            midx,midy = (endx + startx) / 2.0, (endy + starty) / 2.0
-            pathstring += " L%s,%s" %(midx, midy)
-            oldmidx,oldmidy = midx,midy
-            
-            # for each line
-            for line in coords:
-                # curve from midpoint of first to midpoint of second
-                (startx,starty),(endx,endy) = line
-                midx,midy = (endx + startx) / 2.0, (endy + starty) / 2.0
-                pathstring += " Q%s,%s,%s,%s" %(startx, starty, midx, midy)
-                oldmidx,oldmidy = midx,midy
+            coords = list(coords)
+
+            if not volume:
+                fillsize = options["fillsize"] / 2.0 # no need to convert unit since fillsize has already been through that
+                getbuffer = lambda p,x,y: fillsize
+
+            elif hasattr(volume, "__call__"):
+                def getbuffer(prog, x, y):
+                    return convertvolume(volume(prog, x, y)) / 2.0
+
+            elif hasattr(volume, "__iter__"):
+                _buffers = (buff for buff in volume)
+                def getbuffer(prog, x, y):
+                    return convertvolume(next(_buffers)) / 2.0
+
+            else:
+                raise Exception("The volume parameter must be a function or an iterable (of the same length as the line minus 1) that hold the fillsize for each node")
+
+            def threewise(iterable):
+                a,_ = itertools.tee(iterable)
+                b,c = itertools.tee(_)
+                next(b, None)
+                next(c, None)
+                next(c, None)
+                return itertools.izip(a,b,c)
+
+            def bufferedlinesegments():
+                #the first line
+                (x1,y1),(x2,y2),(x3,y3) = coords[:3]
+                line1 = _Line(x1,y1,x2,y2)
+                line2 = _Line(x2,y2,x3,y3)
+                prog = 0
+                buffersize = getbuffer(prog, x1, y1)
+                leftline,rightline = line1.getbuffersides(linebuffer=buffersize)
+                leftlinestart = leftline.tolist()[0]
+                rightlinestart = rightline.tolist()[0]
+                prevleft = leftlinestart
+                prevright = rightlinestart
+                #then all mid areas
+                #sharp join style
+                for i,(start,mid,end) in enumerate(threewise(coords)):
+                    i += 1
+                    (x1,y1),(x2,y2),(x3,y3) = start,mid,end
+                    line1 = _Line(x1,y1,x2,y2)
+                    line2 = _Line(x2,y2,x3,y3)
+                    prog = i / float(len(coords))
+                    buffersize = getbuffer(prog, x2, y2)
+                    
+                    line1_left,line1_right = line1.getbuffersides(linebuffer=buffersize)
+                    line2_left,line2_right = line2.getbuffersides(linebuffer=buffersize)
+                    midleft = line1_left.intersect(line2_left, infinite=True)
+                    midright = line1_right.intersect(line2_right, infinite=True)
+                    if not midleft or not midright:
+                        #PROB FLOAT ERROR,SO NO INTERSECTION FOUND
+                        #CURRENTLY JUST SKIP DRAWING,BUT NEED BETTER HANDLING
+                        raise Exception("Unexpected error")
+
+                    # yield each line segment one at a time, so they are drawn in correct order if overlap
+                    leftside = [prevleft,midleft]
+                    rightside = [prevright,midright]
+                    yield leftside, rightside
+
+                    # remember coords
+                    prevleft = midleft
+                    prevright = midright
+                    
+                #finally add last line coords
+                (x1,y1),(x2,y2) = coords[-2:]
+                lastline = _Line(x1,y1,x2,y2)
+                prog = 1
+                buffersize = getbuffer(prog, x2, y2)
+                leftline,rightline = lastline.getbuffersides(linebuffer=buffersize)
+                leftlineend = leftline.tolist()[1]
+                rightlineend = rightline.tolist()[1]
+
+                leftside = [prevleft,leftlineend]
+                rightside = [prevright,rightlineend]
+                yield leftside, rightside
+
+            if smooth:
+
+                pen,brush = aggdraw.Pen(options["outlinecolor"], options["outlinewidth"]), aggdraw.Brush(options["fillcolor"])
+
+                segments = bufferedlinesegments()
+                def midpoint(line):
+                    (startx,starty),(endx,endy) = line
+                    midx,midy = (endx + startx) / 2.0, (endy + starty) / 2.0
+                    return midx,midy
+
+                # draw straight line to first line midpoint
+                left,right = next(bufferedlinesegments()) # without iterating segments
                 
-            # draw straight line to endpoint of last line
-            pathstring += " L%s,%s" %(endx, endy)
+                firstleft,firstright = left,right
+                firstline = coords[:2]
+                
+                # first fill
+                midleft = midpoint(left)
+                midright = midpoint(right)
+                linepolygon = [left[0], midleft, midright, right[0]]
+                pathstring = " M%s,%s" %linepolygon[0]
+                for p in linepolygon[1:]:
+                    pathstring += " L%s,%s"%p
+                symbol = aggdraw.Symbol(pathstring)
+                self.drawer.symbol((0,0), symbol, None, brush)
 
-            # make into symbol object
-            symbol = aggdraw.Symbol(pathstring)
+                # then outline
+                # left
+                pathstring = " M%s,%s" %left[0]
+                pathstring += " L%s,%s" %midleft
+                symbol = aggdraw.Symbol(pathstring)
+                self.drawer.symbol((0,0), symbol, pen, None)
+                # right
+                pathstring = " M%s,%s" %right[0]
+                pathstring += " L%s,%s" %midright
+                symbol = aggdraw.Symbol(pathstring)
+                self.drawer.symbol((0,0), symbol, pen, None)
 
-            # draw the constructed symbol
-            self.drawer.symbol((0,0), symbol, *args)
+                left1,right1 = left,right
+                midleft1,midright1 = midleft,midright
+                
+                # for each line
+                for left2,right2 in segments:
+                    # curve from midpoint of first to midpoint of second
+                    midleft2 = midpoint(left2)
+                    midright2 = midpoint(right2)
+
+                    # first fill
+                    pathstring = " M%s,%s" %midleft1 + " Q%s,%s"%left2[0] + ",%s,%s"%midleft2
+                    pathstring += " L%s,%s" %midright2 + " Q%s,%s"%right2[0] + ",%s,%s"%midright1
+                    symbol = aggdraw.Symbol(pathstring)
+                    self.drawer.symbol((0,0), symbol, None, brush)
+
+                    # then outline
+                    # left
+                    pathstring = " M%s,%s"%midleft1
+                    pathstring += " Q%s,%s"%left2[0] + ",%s,%s"%midleft2
+                    symbol = aggdraw.Symbol(pathstring)
+                    self.drawer.symbol((0,0), symbol, pen, None)
+                    # right
+                    pathstring = " M%s,%s"%midright1
+                    pathstring += " Q%s,%s"%right2[0] + ",%s,%s"%midright2
+                    symbol = aggdraw.Symbol(pathstring)
+                    self.drawer.symbol((0,0), symbol, pen, None)
+
+                    left1,right1 = left2,right2
+                    midleft1,midright1 = midleft2,midright2
+                                        
+                # draw straight line to endpoint of last line
+                # first fill
+                linepolygon = [midleft2, left2[1], right2[1], midright2]
+                pathstring = " M%s,%s" %linepolygon[0]
+                for p in linepolygon[1:]:
+                    pathstring += " L%s,%s"%p
+                symbol = aggdraw.Symbol(pathstring)
+                self.drawer.symbol((0,0), symbol, None, brush)
+
+                # then outline
+                # left
+                pathstring = " M%s,%s" %midleft2
+                pathstring += " L%s,%s" %left2[1]
+                symbol = aggdraw.Symbol(pathstring)
+                self.drawer.symbol((0,0), symbol, pen, None)
+                # right
+                pathstring = " M%s,%s" %midright2
+                pathstring += " L%s,%s" %right2[1]
+                symbol = aggdraw.Symbol(pathstring)
+                self.drawer.symbol((0,0), symbol, pen, None)
+
+                lastline = coords[-2:]
+                lastleft = left2[1]
+                lastright = right2[1]
+                    
+                    
+                
+##                # first fill
+##                linepolygon = left + right
+##                pathstring = " M%s,%s" %linepolygon[0]
+##                for p in linepolygon[1:]:
+##                    pathstring += " L%s,%s"%p
+##                symbol = aggdraw.Symbol(pathstring)
+##                self.drawer.symbol((0,0), symbol, None, brush)
+##
+##                # then outline
+##                # left
+##                pathstring = " M%s,%s"%left[0] + " L%s,%s"%left[1]
+##                print pathstring
+##                symbol = aggdraw.Symbol(pathstring)
+##                self.drawer.symbol((0,0), symbol, pen, None)
+##                # right
+##                pathstring = " M%s,%s"%right[0] + " L%s,%s"%right[1]
+##                print pathstring
+##                symbol = aggdraw.Symbol(pathstring)
+##                self.drawer.symbol((0,0), symbol, pen)
+
+
+
+##                # begin
+##                coords = _pairwise(coords)
+##                (startx,starty),(endx,endy) = next(coords)
+##                pathstring += " M%s,%s" %(startx, starty)
+##                
+##                # draw straight line to first line midpoint
+##                midx,midy = (endx + startx) / 2.0, (endy + starty) / 2.0
+##                pathstring += " L%s,%s" %(midx, midy)
+##                oldmidx,oldmidy = midx,midy
+##                
+##                # for each line
+##                for line in coords:
+##                    # curve from midpoint of first to midpoint of second
+##                    (startx,starty),(endx,endy) = line
+##                    midx,midy = (endx + startx) / 2.0, (endy + starty) / 2.0
+##                    pathstring += " Q%s,%s,%s,%s" %(startx, starty, midx, midy)
+##                    oldmidx,oldmidy = midx,midy
+##                    
+##                # draw straight line to endpoint of last line
+##                pathstring += " L%s,%s" %(endx, endy)
+
+            else:
+                # not smooth
+                pen,brush = aggdraw.Pen(options["outlinecolor"], options["outlinewidth"]), aggdraw.Brush(options["fillcolor"])
+
+                firstleft,firstright = next(bufferedlinesegments()) # separate iter
+                firstline = coords[:2]
+        
+                for left,right in bufferedlinesegments():
+                    # first fill
+                    linepolygon = left + list(reversed(right))
+                    pathstring = " M%s,%s" %linepolygon[0]
+                    for p in linepolygon[1:]:
+                        pathstring += " L%s,%s"%p
+                    symbol = aggdraw.Symbol(pathstring)
+                    self.drawer.symbol((0,0), symbol, None, brush)
+
+                    # then outline
+                    # left
+                    pathstring = " M%s,%s"%left[0] + " L%s,%s"%left[1]
+                    symbol = aggdraw.Symbol(pathstring)
+                    self.drawer.symbol((0,0), symbol, pen, None)
+                    # right
+                    pathstring = " M%s,%s"%right[0] + " L%s,%s"%right[1]
+                    symbol = aggdraw.Symbol(pathstring)
+                    self.drawer.symbol((0,0), symbol, pen)
+
+                lastline = coords[-2:]
+                lastleft = left[1]
+                lastright = right[1]
+                
+##                linepolygon_left = []
+##                linepolygon_right = []
+##                #the first line
+##                (x1,y1),(x2,y2),(x3,y3) = coords[:3]
+##                line1 = _Line(x1,y1,x2,y2)
+##                line2 = _Line(x2,y2,x3,y3)
+##                prog = 0
+##                buffersize = getbuffer(prog, x1, y1)
+##                leftline,rightline = line1.getbuffersides(linebuffer=buffersize)
+##                leftlinestart = leftline.tolist()[0]
+##                rightlinestart = rightline.tolist()[0]
+##                linepolygon_left.append(leftlinestart)
+##                linepolygon_right.append(rightlinestart)
+##                #then all mid areas
+##                #sharp join style
+##                for i,(start,mid,end) in enumerate(threewise(coords)):
+##                    i += 1
+##                    (x1,y1),(x2,y2),(x3,y3) = start,mid,end
+##                    line1 = _Line(x1,y1,x2,y2)
+##                    line2 = _Line(x2,y2,x3,y3)
+##                    prog = i / float(len(coords))
+##                    buffersize = getbuffer(prog, x2, y2)
+##                    
+##                    line1_left,line1_right = line1.getbuffersides(linebuffer=buffersize)
+##                    line2_left,line2_right = line2.getbuffersides(linebuffer=buffersize)
+##                    midleft = line1_left.intersect(line2_left, infinite=True)
+##                    midright = line1_right.intersect(line2_right, infinite=True)
+##                    if not midleft or not midright:
+##                        #PROB FLOAT ERROR,SO NO INTERSECTION FOUND
+##                        #CURRENTLY JUST SKIP DRAWING,BUT NEED BETTER HANDLING
+##                        return
+##                    #add coords
+##                    linepolygon_left.append(midleft)
+##                    linepolygon_right.append(midright)
+##                #finally add last line coords
+##                (x1,y1),(x2,y2) = coords[-2:]
+##                lastline = _Line(x1,y1,x2,y2)
+##                prog = 1
+##                buffersize = getbuffer(prog, x2, y2)
+##                leftline,rightline = lastline.getbuffersides(linebuffer=buffersize)
+##                leftlineend = leftline.tolist()[1]
+##                rightlineend = rightline.tolist()[1]
+##            
+##                linepolygon_left.append(leftlineend)
+##                linepolygon_right.append(rightlineend)
+##
+##                linepolygon = linepolygon_left + list(reversed(linepolygon_right))
+##
+##                #finally draw it
+##                pathstring = ""
+##                
+##                # begin
+##                linepolygon = (point for point in linepolygon)
+##                (x,y) = next(linepolygon)
+##                pathstring += " M%s,%s" %(x,y)
+##                
+##                # for each line
+##                for x,y in linepolygon:
+##                    pathstring += " L%s,%s" %(x,y)
+##
+##                # make into symbol object
+##                symbol = aggdraw.Symbol(pathstring)
+##
+##                # draw the constructed symbol
+##                args = aggdraw.Pen(options["outlinecolor"], options["outlinewidth"]), aggdraw.Brush(options["fillcolor"])
+##                self.drawer.symbol((0,0), symbol, *args)
+
+
+
+##                # WORKS!!
+##                pen,brush = aggdraw.Pen(options["outlinecolor"], options["outlinewidth"]), aggdraw.Brush(options["fillcolor"])
+##        
+##                linepolygon_left = []
+##                linepolygon_right = []
+##                #the first line
+##                (x1,y1),(x2,y2),(x3,y3) = coords[:3]
+##                line1 = _Line(x1,y1,x2,y2)
+##                line2 = _Line(x2,y2,x3,y3)
+##                prog = 0
+##                buffersize = getbuffer(prog, x1, y1)
+##                leftline,rightline = line1.getbuffersides(linebuffer=buffersize)
+##                leftlinestart = leftline.tolist()[0]
+##                rightlinestart = rightline.tolist()[0]
+##                linepolygon_left.append(leftlinestart)
+##                linepolygon_right.append(rightlinestart)
+##                #then all mid areas
+##                #sharp join style
+##                for i,(start,mid,end) in enumerate(threewise(coords)):
+##                    i += 1
+##                    (x1,y1),(x2,y2),(x3,y3) = start,mid,end
+##                    line1 = _Line(x1,y1,x2,y2)
+##                    line2 = _Line(x2,y2,x3,y3)
+##                    prog = i / float(len(coords))
+##                    buffersize = getbuffer(prog, x2, y2)
+##                    
+##                    line1_left,line1_right = line1.getbuffersides(linebuffer=buffersize)
+##                    line2_left,line2_right = line2.getbuffersides(linebuffer=buffersize)
+##                    midleft = line1_left.intersect(line2_left, infinite=True)
+##                    midright = line1_right.intersect(line2_right, infinite=True)
+##                    if not midleft or not midright:
+##                        #PROB FLOAT ERROR,SO NO INTERSECTION FOUND
+##                        #CURRENTLY JUST SKIP DRAWING,BUT NEED BETTER HANDLING
+##                        return
+##
+##                    # draw each line segment one at a time, so they are drawn in correct order if overlap
+##
+##                    # first fill
+##                    linepolygon = [] #line1_left, midleft, line2_left, line2_right, midright, line1_right]
+##                    linepolygon.extend([linepolygon_left[-1],midleft])
+##                    linepolygon.extend([midright,linepolygon_right[-1]])
+##                    pathstring = " M%s,%s" %linepolygon[0]
+##                    for p in linepolygon[1:]:
+##                        pathstring += " L%s,%s"%p
+##                    symbol = aggdraw.Symbol(pathstring)
+##                    self.drawer.symbol((0,0), symbol, None, brush)
+##
+##                    # then outline
+##                    # left
+##                    pathstring = " M%s,%s"%linepolygon_left[-1] + " L%s,%s"%midleft
+##                    print pathstring
+##                    symbol = aggdraw.Symbol(pathstring)
+##                    self.drawer.symbol((0,0), symbol, pen, None)
+##                    # right
+##                    pathstring = " M%s,%s"%linepolygon_right[-1] + " L%s,%s"%midright
+##                    print pathstring
+##                    symbol = aggdraw.Symbol(pathstring)
+##                    self.drawer.symbol((0,0), symbol, pen)
+##
+##                    # remember coords
+##                    linepolygon_left.append(midleft)
+##                    linepolygon_right.append(midright)
+##                    
+##                #finally add last line coords
+##                (x1,y1),(x2,y2) = coords[-2:]
+##                lastline = _Line(x1,y1,x2,y2)
+##                prog = 1
+##                buffersize = getbuffer(prog, x2, y2)
+##                leftline,rightline = lastline.getbuffersides(linebuffer=buffersize)
+##                leftlineend = leftline.tolist()[1]
+##                rightlineend = rightline.tolist()[1]
+##
+##                # first fill
+##                linepolygon = [] #line1_left, midleft, line2_left, line2_right, midright, line1_right]
+##                linepolygon.extend([linepolygon_left[-1],leftlineend])
+##                linepolygon.extend([rightlineend,linepolygon_right[-1]])
+##                pathstring = " M%s,%s" %linepolygon[0]
+##                for p in linepolygon[1:]:
+##                    pathstring += " L%s,%s"%p
+##                symbol = aggdraw.Symbol(pathstring)
+##                self.drawer.symbol((0,0), symbol, None, brush)
+##
+##                # then outline
+##                # left
+##                pathstring = " M%s,%s"%linepolygon_left[-1] + " L%s,%s"%leftlineend
+##                print pathstring
+##                symbol = aggdraw.Symbol(pathstring)
+##                self.drawer.symbol((0,0), symbol, pen, None)
+##                # right
+##                pathstring = " M%s,%s"%linepolygon_right[-1] + " L%s,%s"%rightlineend
+##                print pathstring
+##                symbol = aggdraw.Symbol(pathstring)
+##                self.drawer.symbol((0,0), symbol, pen)
+
+            # optional startpoint
+            if start:
+                if start == "flat":
+                    def start(line,left,right):
+                        return left,right
+                        
+                startpolygon = start(firstline, firstleft, firstright) # takes last two poins ie last line and left and right endpoints as input arg
+
+                # first fill
+                pathstring = " M%s,%s" %startpolygon[0]
+                for p in endpolygon[1:]:
+                    pathstring += " L%s,%s"%p
+                symbol = aggdraw.Symbol(pathstring)
+                self.drawer.symbol((0,0), symbol, None, brush)
+
+                # then outline
+                # left
+                pathstring = " M%s,%s"%startpolygon[0]
+                for p in endpolygon[1:]:
+                    pathstring += " L%s,%s"%p
+                symbol = aggdraw.Symbol(pathstring)
+                self.drawer.symbol((0,0), symbol, pen, None)
+                # right
+                pathstring = " M%s,%s"%startpolygon[-1]
+                for p in reversed(startpolygon[:-1]):
+                    pathstring += " L%s,%s"%p
+                symbol = aggdraw.Symbol(pathstring)
+                self.drawer.symbol((0,0), symbol, pen)
+
+            # optional endpoint
+            if end:
+                if end == "arrow":
+                    def end(line,left,right):
+                        helpline = _Line(line[0][0],line[0][1],line[1][0],line[1][1])
+                        width = abs(math.hypot(left[0]-right[0], left[1]-right[1]))
+                        tip = helpline.walkdistance(-width)
+                        leftbuf,rightbuf = helpline.getbuffersides(width)
+                        return left,leftbuf.end,tip,rightbuf.end,right
+                elif end == "flat":
+                    def end(line,left,right):
+                        return left,right
+                        
+                endpolygon = end(lastline, lastleft, lastright) # takes last two poins ie last line and left and right endpoints as input arg
+
+                # first fill
+                pathstring = " M%s,%s" %endpolygon[0]
+                for p in endpolygon[1:]:
+                    pathstring += " L%s,%s"%p
+                symbol = aggdraw.Symbol(pathstring)
+                self.drawer.symbol((0,0), symbol, None, brush)
+
+                # then outline
+                # left
+                pathstring = " M%s,%s"%endpolygon[0]
+                for p in endpolygon[1:]:
+                    pathstring += " L%s,%s"%p
+                symbol = aggdraw.Symbol(pathstring)
+                self.drawer.symbol((0,0), symbol, pen, None)
+                # right
+                pathstring = " M%s,%s"%endpolygon[-1]
+                for p in reversed(endpolygon[:-1]):
+                    pathstring += " L%s,%s"%p
+                symbol = aggdraw.Symbol(pathstring)
+                self.drawer.symbol((0,0), symbol, pen)
 
         else:
+            # no volume and no outline, simple and fast
+        
+            # get drawing tools from options
+            args = []
+            if options["fillcolor"]:
+                pen = aggdraw.Pen(options["fillcolor"], options["fillsize"])
+                args.append(pen)
 
-            path = aggdraw.Path()
-            
-            # begin
-            startx,starty = next(coords)
-            path.moveto(startx, starty)
-            
-            # connect to each successive point
-            for nextx,nexty in coords:
-                path.lineto(nextx, nexty)
+            if smooth:
 
-            # draw the constructed path
-            self.drawer.path((0,0), path, *args)
+                # Note: Creation of the aggdraw.Symbol object here can be
+                # very slow for long lines; Path is much faster but due
+                # to a bug it does not correctly render curves, hence the use
+                # of Symbol
+
+                # Todo: Maybe use smooth bezier instead which passes through
+                # the full start and end points and still connects them smoothly.
+    ##            pathstring = ""
+    ##            coords = (c for c in coords)
+    ##            pathstring += " M%s,%s" %next(coords)
+    ##            pathstring += " L%s,%s" %next(coords)
+    ##            # for each line
+    ##            for nextx,nexty in coords:
+    ##                pathstring += " T%s,%s" %(nextx,nexty)
+                
+                pathstring = ""
+                
+                # begin
+                coords = _pairwise(coords)
+                (startx,starty),(endx,endy) = next(coords)
+                pathstring += " M%s,%s" %(startx, starty)
+                
+                # draw straight line to first line midpoint
+                midx,midy = (endx + startx) / 2.0, (endy + starty) / 2.0
+                pathstring += " L%s,%s" %(midx, midy)
+                oldmidx,oldmidy = midx,midy
+                
+                # for each line
+                for line in coords:
+                    # curve from midpoint of first to midpoint of second
+                    (startx,starty),(endx,endy) = line
+                    midx,midy = (endx + startx) / 2.0, (endy + starty) / 2.0
+                    pathstring += " Q%s,%s,%s,%s" %(startx, starty, midx, midy)
+                    oldmidx,oldmidy = midx,midy
+                    
+                # draw straight line to endpoint of last line
+                pathstring += " L%s,%s" %(endx, endy)
+
+                # make into symbol object
+                symbol = aggdraw.Symbol(pathstring)
+
+                # draw the constructed symbol
+                self.drawer.symbol((0,0), symbol, *args)
+
+            else:
+                # not smooth
+                # begin
+                path = aggdraw.Path()
+                startx,starty = next(coords)
+                path.moveto(startx, starty)
+                
+                # connect to each successive point
+                for nextx,nexty in coords:
+                    path.lineto(nextx, nexty)
+
+                # draw the constructed path
+                self.drawer.path((0,0), path, *args)
 
     def draw_polygon(self, coords, holes=[], **options):
         """
