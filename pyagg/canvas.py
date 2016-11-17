@@ -2515,6 +2515,9 @@ class Canvas:
         """
         if not text:
             return False
+
+        if not isinstance(text, (unicode,str)):
+            text = str(text)
         
         options = self._check_text_options(options)
 

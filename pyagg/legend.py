@@ -102,8 +102,9 @@ class Label(_Symbol):
         import PIL, PIL.ImageFont
         from . import fonthelper
         fontlocation = fonthelper.get_fontpath(info["font"])
-        font = PIL.ImageFont.truetype(fontlocation, size=info["textsize"]) 
-        reqwidth, reqheight = font.getsize(self.text)
+        font = PIL.ImageFont.truetype(fontlocation, size=info["textsize"])
+        text = self.text if isinstance(self.text, (unicode,str)) else str(self.text)
+        reqwidth, reqheight = font.getsize(text)
                     
         # create canvas and draw
         c = Canvas(width=reqwidth, height=reqheight)
