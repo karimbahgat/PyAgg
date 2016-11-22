@@ -523,24 +523,29 @@ class Canvas:
                                  canvassize=[self.width,self.height],
                                  coordsize=[self.coordspace_width,self.coordspace_height])
         if lock_ratio:
-            # see: http://stackoverflow.com/questions/9103257/resize-image-maintaining-aspect-ratio-and-making-portrait-and-landscape-images-e
-            img = self.img.copy()
-            img.thumbnail((width,height), PIL.Image.ANTIALIAS)
-            oldwidth,oldheight = img.size
-
             # FINAL TODO: newbbox coords not correct yet...
             if fit:
-                thumb = img.crop( (0, 0, width, height) )
+                # fits entire image inside the width and height
+                wratio = width / float(self.width)
+                hratio = height / float(self.height)
+                scale = min((wratio,hratio))
 
-                offset_x = max([ (width - oldwidth) / 2.0, 0 ])
-                offset_y = max([ (height - oldheight) / 2.0, 0 ])
+                newwidth = int(self.width * scale)
+                newheight = int(self.height * scale)
+                topaste = self.img.resize((newwidth, newheight), PIL.Image.ANTIALIAS)
 
-                self.img = PIL.ImageChops.offset(thumb, int(offset_x), int(offset_y))
+                self.img = PIL.Image.new(self.img.mode, (width, height))
+                midx = int(width / 2.0)
+                midy = int(height / 2.0)
+                self.paste(topaste, (midx,midy), anchor="center")
+
                 newbbox = self.coordspace_bbox
                 newbbox = bboxhelper.conform_aspect(newbbox, width, height, fit=True)
-
+                
             else:
-                self.img = PIL.ImageOps.fit(img, (width,height), PIL.Image.ANTIALIAS, (0.5, 0.5))
+                # fills entire width and height while cropping any excess
+                # Note: PIL "fit" is actually filling, just difference uses of terminology
+                self.img = PIL.ImageOps.fit(self.img, (width,height), PIL.Image.ANTIALIAS, (0.5, 0.5))
                 newbbox = self.coordspace_bbox
                 newbbox = bboxhelper.conform_aspect(newbbox, width, height, fit=False)
         
@@ -786,7 +791,10 @@ class Canvas:
 
         ###
         if image.mode == "RGBA":
-            self.img.paste(image, xy, image) # paste using self as transparency mask
+            pasted = PIL.Image.new("RGBA", self.img.size)
+            pasted.paste(image, xy, image) # reframes the image so has the same size as the background image
+            self.img = PIL.Image.alpha_composite(self.img, pasted) # possibly slower but correctly blends the transparencies of both imgs
+            #self.img.paste(image, xy, image) # paste using self as transparency mask (PROBLEM: forces transparency of pasted image, so cuts through solid colors in the background image)
         else: self.img.paste(image, xy)
             
         # apply
