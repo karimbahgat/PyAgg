@@ -526,6 +526,15 @@ class Canvas:
             # FINAL TODO: newbbox coords not correct yet...
             if fit:
                 # fits entire image inside the width and height
+                
+##                img = self.img.copy()
+##                img.thumbnail((width,height), PIL.Image.ANTIALIAS)
+##                oldwidth,oldheight = img.size
+##                thumb = img.crop( (0, 0, width, height) )
+##                offset_x = max([ (width - oldwidth) / 2.0, 0 ])
+##                offset_y = max([ (height - oldheight) / 2.0, 0 ])
+##                self.img = PIL.ImageChops.offset(thumb, int(offset_x), int(offset_y))
+                
                 wratio = width / float(self.width)
                 hratio = height / float(self.height)
                 scale = min((wratio,hratio))
