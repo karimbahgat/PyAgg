@@ -50,7 +50,7 @@ The main features of PyAgg include:
    pie slices, and point symbols like circles, squares, and triangles
    with an optional flattening factor.
 -  Style your drawing sizes and distances in several types of units,
-   including pixels, percentagea, cm, mm, inches, and font points, by
+   including pixels, percentages, cm, mm, inches, and font points, by
    specifying the real world size of your image.
 -  Smart support for text writing, including text anchoring, and
    automatic detection of available fonts.
@@ -61,7 +61,7 @@ There is also support for common domain specific data visualization:
 
 -  Partial support for geographical plotting, including a lat-long
    coordinate system, and automatic drawing of GeoJSON features.
--  Easily plot statistical data on graphs witn a syntax and
+-  Easily plot statistical data on graphs with a syntax and
    functionality that is aimed more for data analysts and laymen than
    computer scientists, including linegraph, scatterplot, histogram,
    etc, although these are still a work in progress.
