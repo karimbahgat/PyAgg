@@ -1066,6 +1066,7 @@ class Canvas:
 
         colors = polylinear_gradient(gradient, 256)
         # put into palette
+        colors = ((rgb[0],rgb[1],rgb[2]) for rgb in colors)
         plt = [spec for rgb in colors for spec in rgb]
         if self.img.mode == "RGBA":
             r,g,b,a = self.img.split()
@@ -1124,6 +1125,8 @@ class Canvas:
             final_gradient.append(nextcolor)
             return final_gradient
 
+        line = self.parse_relative_units(line)
+
         halfwidth = width/2.0
         p1,p2 = line
         dirvec = p2[0]-p1[0], p2[1]-p1[1]
@@ -1135,12 +1138,13 @@ class Canvas:
         xincr = dirvec[0]/float(steps)
         yincr = dirvec[1]/float(steps)
         incrlength = math.hypot(xincr,yincr)
+        print xincr,yincr,incrlength
         cur = p1
         for step in range(steps):
             left = cur[0]-perpvec[0], cur[1]-perpvec[1]
             right = cur[0]+perpvec[0], cur[1]+perpvec[1]
             col = tuple(next(colors))
-            self.draw_line([left,right], fillcolor=col, fillsize=incrlength)
+            self.draw_line([left,right], fillcolor=col, fillsize=incrlength, outlinecolor=None)
             cur = cur[0]+xincr, cur[1]+yincr
             
         
@@ -2924,6 +2928,26 @@ class Canvas:
         xdiff,ydiff = (fromx-tox),(fromy-toy)
         dist = math.hypot(xdiff,ydiff) 
         return dist
+
+    def parse_relative_dist(self, dist):
+       return units.parse_dist(dist,
+                                 ppi=self.ppi,
+                                 default_unit=self.default_unit,
+                                 canvassize=[self.width,self.height],
+                                 coordsize=[self.coordspace_width,self.coordspace_height])
+
+    def parse_relative_units(self, coordinates):
+        return [(units.parse_dist(point[0],
+                                 ppi=self.ppi,
+                                 default_unit=self.default_unit,
+                                 canvassize=[self.width,self.height],
+                                 coordsize=[self.coordspace_width,self.coordspace_height]),
+                 units.parse_dist(point[1],
+                                 ppi=self.ppi,
+                                 default_unit=self.default_unit,
+                                 canvassize=[self.width,self.height],
+                                 coordsize=[self.coordspace_width,self.coordspace_height]) )
+                for point in coordinates]
 
 
 

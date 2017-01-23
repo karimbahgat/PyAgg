@@ -85,6 +85,53 @@ class _Symbol:
         return c
 
 
+class _Gradient(_Symbol):
+    def __init__(self, gradient, 
+                 length, thickness,
+                 refcanvas=None,
+                 direction="e",
+                 padding=0.05):
+
+        self.refcanvas = refcanvas
+
+        self.gradient = gradient
+        self.length = length
+        self.thickness = thickness
+        
+        self.direction = direction
+        self.padding = padding
+
+    def render(self):
+        # fillsize is used directly
+        if self.refcanvas: 
+            info = dict(length=self.refcanvas.parse_relative_dist(self.length),
+                        thickness=self.refcanvas.parse_relative_dist(self.thickness))
+        else:
+            tempcanv = Canvas(10,10)
+            info = dict(length=tempcanv.parse_relative_dist(self.length),
+                        thickness=tempcanv.parse_relative_dist(self.thickness))
+
+        # get size
+        if self.direction in "ns":
+            reqwidth, reqheight = info["thickness"],info["length"]
+            line = [("50%w","0%h"),("50%w","100%h")] # south
+            if self.direction == "n": line = [line[1],line[0]] # north
+        else:
+            reqwidth, reqheight = info["length"],info["thickness"]
+            line = [("0%w","50%h"),("100%w","50%h")] # east
+            if self.direction == "w": line = [line[1],line[0]] # west
+                    
+        # create canvas and draw
+        c = Canvas(width=reqwidth, height=reqheight)
+        c.set_default_unit("px")
+        c.draw_gradient(line, self.gradient, info["thickness"])
+
+        c.drawer.flush() # STRANGE BUG, DOESNT RENDER UNLESS CALLING FLUSH HERE...
+        c.update_drawer_img()
+
+        return c
+
+
 class Label(_Symbol):
     def __init__(self, text, refcanvas=None, **kwargs):
         self.text = text
@@ -114,6 +161,7 @@ class Label(_Symbol):
         c.draw_text(self.text, xy=(x,y), anchor="center", **self.kwargs)
 
         return c
+
 
 
 class _BaseGroup:
@@ -329,7 +377,18 @@ class BaseGroup(_BaseGroup):
                 valueformat = lambda val: format(val, frmtstring)
             breaks = [valueformat(brk) for brk in breaks]
 
-        if valuetype == "continuous":
+        if valuetype == "proportional":
+            # TODO: maybe also proportional sizes....
+            if not "side" in labeloptions: labeloptions["side"] = "e"
+            _symboloptions = dict(symboloptions)
+            group = SymbolGroup(direction=direction, anchor=anchor, title=title, titleoptions=titleoptions, padding=0)
+            obj = GradientSymbol(classvalues, breaks, length=_symboloptions["length"], thickness=_symboloptions["thickness"],
+                                 refcanvas=self.refcanvas,
+                                 direction=direction, anchor=anchor, labeloptions=labeloptions)
+            group.add_item(obj)
+            self.add_item(group)
+            
+        elif valuetype == "continuous":
             if not "side" in labeloptions: labeloptions["side"] = "e"
             prevbrk = breaks[0]
             group = SymbolGroup(direction=direction, anchor=anchor, title=title, titleoptions=titleoptions, padding=0)
@@ -478,6 +537,32 @@ class FillColorSymbol(BaseGroup):
         
         obj = _Symbol(type=shape, refcanvas=refcanvas, **symboloptions)
         self.add_item(obj)
+
+
+
+class GradientSymbol(BaseGroup):
+    def __init__(self, gradient, ticks,
+                 length, thickness,
+                 refcanvas=None,
+                 direction="e", anchor="center",
+                 title="",
+                 titleoptions=None,
+                 label="",
+                 labeloptions=None, padding=0.05):
+
+        titleoptions = titleoptions or dict()
+        labeloptions = labeloptions or dict()
+        #if "padding" not in labeloptions: labeloptions["padding"] = padding
+        BaseGroup.__init__(self, title=title, titleoptions=titleoptions, padding=padding, direction=direction)
+
+        grad = _Gradient(gradient, length, thickness, refcanvas=refcanvas,
+                         direction=direction, padding=0)
+
+        self.add_item(Label(ticks[0], **labeloptions))
+        self.add_item(grad)
+        self.add_item(Label(ticks[-1], **labeloptions))
+
+
 
 
 class SymbolGroup(BaseGroup):
