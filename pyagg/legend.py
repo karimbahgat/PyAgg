@@ -114,17 +114,17 @@ class _Gradient(_Symbol):
         # get size
         if self.direction in "ns":
             reqwidth, reqheight = info["thickness"],info["length"]
-            line = [("50%w","0%h"),("50%w","100%h")] # south
+            line = [(reqwidth/2.0,0),(reqwidth/2.0,reqheight)] # south
             if self.direction == "n": line = [line[1],line[0]] # north
         else:
             reqwidth, reqheight = info["length"],info["thickness"]
-            line = [("0%w","50%h"),("100%w","50%h")] # east
+            line = [(0,reqheight/2.0),(reqwidth,reqheight/2.0)] # east
             if self.direction == "w": line = [line[1],line[0]] # west
                     
         # create canvas and draw
         c = Canvas(width=reqwidth, height=reqheight)
         c.set_default_unit("px")
-        c.draw_gradient(line, self.gradient, info["thickness"])
+        c.draw_gradient(line, self.gradient, info["thickness"]) 
 
         c.drawer.flush() # STRANGE BUG, DOESNT RENDER UNLESS CALLING FLUSH HERE...
         c.update_drawer_img()
@@ -360,7 +360,7 @@ class BaseGroup(_BaseGroup):
             group.add_item(obj)
         self.add_item(group)
 
-    def add_fillcolors(self, shape, breaks, classvalues, valuetype="discrete", valueformat=None, direction="s", anchor="w", title="", titleoptions=None, padding=0, labeloptions=None, **symboloptions):
+    def add_fillcolors(self, shape, breaks, classvalues, valuetype="discrete", valueformat=None, direction="s", anchor="w", title="", titleoptions=None, padding=0.01, labeloptions=None, **symboloptions):
 
         # NOTE: refcanvas is not inherited here, since this would lead to unexpected sizes after unit conversion
         # TODO: maybe allow specific size units by splitting away unit, then calculating, then adding the unit back in
@@ -381,8 +381,11 @@ class BaseGroup(_BaseGroup):
             # TODO: maybe also proportional sizes....
             if not "side" in labeloptions: labeloptions["side"] = "e"
             _symboloptions = dict(symboloptions)
-            group = SymbolGroup(direction=direction, anchor=anchor, title=title, titleoptions=titleoptions, padding=0)
+            # TODO: symgroup south dir makes correct, but same dir goes kookoo...
+            # ...
+            group = SymbolGroup(direction="s", anchor=anchor, title=title, titleoptions=titleoptions, padding=0)
             obj = GradientSymbol(classvalues, breaks, length=_symboloptions["length"], thickness=_symboloptions["thickness"],
+                                 padding=padding,
                                  refcanvas=self.refcanvas,
                                  direction=direction, anchor=anchor, labeloptions=labeloptions)
             group.add_item(obj)

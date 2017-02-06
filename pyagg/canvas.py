@@ -1125,25 +1125,28 @@ class Canvas:
             final_gradient.append(nextcolor)
             return final_gradient
 
-        line = self.parse_relative_units(line)
-
+        #width,unit = units.split_unit(width)
+        width = self.parse_relative_dist(width)
+        
         halfwidth = width/2.0
         p1,p2 = line
         dirvec = p2[0]-p1[0], p2[1]-p1[1]
         magni = math.hypot(*dirvec)
-        relmagni = width / float(magni)
+        relmagni = halfwidth / float(magni)
         perpvec = dirvec[1]*relmagni, -dirvec[0]*relmagni
 
         colors = (col for col in polylinear_gradient(gradient, steps))
         xincr = dirvec[0]/float(steps)
         yincr = dirvec[1]/float(steps)
         incrlength = math.hypot(xincr,yincr)
-        print xincr,yincr,incrlength
-        cur = p1
+        incrlength = str(incrlength + 2) + "px" # NOTE: Adds 2 extra pixels to avoid tiny gaps bw lines
+
+        cur = p1[0]+xincr/2.0, p1[1]+yincr/2.0
         for step in range(steps):
             left = cur[0]-perpvec[0], cur[1]-perpvec[1]
             right = cur[0]+perpvec[0], cur[1]+perpvec[1]
             col = tuple(next(colors))
+            
             self.draw_line([left,right], fillcolor=col, fillsize=incrlength, outlinecolor=None)
             cur = cur[0]+xincr, cur[1]+yincr
             

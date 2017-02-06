@@ -172,6 +172,17 @@ def parse_dist(dist, ppi=None, default_unit=None, canvassize=None, coordsize=Non
     pixels = parse_diststring(diststring, ppi, canvassize, coordsize)
     return pixels
 
+def split_unit(value_or_str):
+    if isinstance(value_or_str, basestring):
+        # from right to left, find index of first digit
+        for i,val in reversed(enumerate(value_or_str)):
+            if val.isdigit():
+                break
+        # return everything from left up to that point
+        return eval(value_or_str[:i]), value_or_str[i:]
+    else:
+        return value_or_str, None
+
 
 
 
