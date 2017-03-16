@@ -298,7 +298,10 @@ class Gradient:
     def __init__(self, colorstops):
         self.colorstops = colorstops
 
-    def interp(self, precision=100):
+    def interp(self, steps=100):
+        # interpolate gradient
+        # http://bsou.io/posts/color-gradients-with-python
+        
         def linear_gradient(fromrgb, torgb, n=10):
             ''' returns a gradient list of (n) colors between
             two hex colors. start_hex and finish_hex
@@ -325,7 +328,7 @@ class Gradient:
               all sequential pairs of colors. "n" specifies the total
               number of desired output colors '''
             # The number of colors per individual linear gradient
-            n_out = int(float(n) / (len(colors) - 1))
+            n_out = int(round(float(n) / (len(colors) - 1)))
             final_gradient = []
             # returns dictionary defined by color_dict()
             prevcolor = colors[0]
@@ -336,7 +339,12 @@ class Gradient:
             final_gradient.append(nextcolor)
             return final_gradient
 
-        return polylinear_gradient(self.colorstops, precision)
+        colors = polylinear_gradient(self.colorstops, steps)
+        while len(colors) < steps:
+            # hack to just duplicate the last color in case of indivisible step number
+            colors.append(colors[-1])
+
+        return colors
 
 
 
@@ -1023,48 +1031,8 @@ class Canvas:
         # convert to grayscale and recolor based on input gradient
         # experimental...
         self.drawer.flush()
+        colors = Gradient(gradient).interp(256)
 
-        # interpolate gradient
-        # http://bsou.io/posts/color-gradients-with-python
-        
-        def linear_gradient(fromrgb, torgb, n=10):
-            ''' returns a gradient list of (n) colors between
-            two hex colors. start_hex and finish_hex
-            should be the full six-digit color string,
-            inlcuding the number sign ("#FFFFFF") '''
-            # Starting and ending colors in RGB form
-            s = fromrgb
-            f = torgb
-            # Initilize a list of the output colors with the starting color
-            RGB_list = [s]
-            # Calcuate a color at each evenly spaced value of t from 1 to n
-            for t in range(1, n):
-            # Interpolate RGB vector for color at the current value of t
-                curr_vector = [
-                int(s[j] + (float(t)/(n-1))*(f[j]-s[j]))
-                for j in range(3)
-                ]
-                # Add it to our list of output colors
-                RGB_list.append(curr_vector)
-            return RGB_list
-
-        def polylinear_gradient(colors, n):
-            ''' returns a list of colors forming linear gradients between
-              all sequential pairs of colors. "n" specifies the total
-              number of desired output colors '''
-            # The number of colors per individual linear gradient
-            n_out = int(float(n) / (len(colors) - 1))
-            final_gradient = []
-            # returns dictionary defined by color_dict()
-            prevcolor = colors[0]
-            for nextcolor in colors[1:]:
-                subgrad = linear_gradient(prevcolor, nextcolor, n_out)
-                final_gradient.extend(subgrad[:-1])
-                prevcolor = nextcolor
-            final_gradient.append(nextcolor)
-            return final_gradient
-
-        colors = polylinear_gradient(gradient, 256)
         # put into palette
         colors = ((rgb[0],rgb[1],rgb[2]) for rgb in colors)
         plt = [spec for rgb in colors for spec in rgb]
@@ -1087,43 +1055,6 @@ class Canvas:
         return self
 
     def draw_gradient(self, line, gradient, width, steps=100):
-        
-        def linear_gradient(fromrgb, torgb, n=10):
-            ''' returns a gradient list of (n) colors between
-            two hex colors. start_hex and finish_hex
-            should be the full six-digit color string,
-            inlcuding the number sign ("#FFFFFF") '''
-            # Starting and ending colors in RGB form
-            s = fromrgb
-            f = torgb
-            # Initilize a list of the output colors with the starting color
-            RGB_list = [s]
-            # Calcuate a color at each evenly spaced value of t from 1 to n
-            for t in range(1, n):
-            # Interpolate RGB vector for color at the current value of t
-                curr_vector = [
-                int(s[j] + (float(t)/(n-1))*(f[j]-s[j]))
-                for j in range(3)
-                ]
-                # Add it to our list of output colors
-                RGB_list.append(curr_vector)
-            return RGB_list
-
-        def polylinear_gradient(colors, n):
-            ''' returns a list of colors forming linear gradients between
-              all sequential pairs of colors. "n" specifies the total
-              number of desired output colors '''
-            # The number of colors per individual linear gradient
-            n_out = int(float(n) / (len(colors) - 1))
-            final_gradient = []
-            # returns dictionary defined by color_dict()
-            prevcolor = colors[0]
-            for nextcolor in colors[1:]:
-                subgrad = linear_gradient(prevcolor, nextcolor, n_out)
-                final_gradient.extend(subgrad[:-1])
-                prevcolor = nextcolor
-            final_gradient.append(nextcolor)
-            return final_gradient
 
         #width,unit = units.split_unit(width)
         width = self.parse_relative_dist(width)
@@ -1135,7 +1066,7 @@ class Canvas:
         relmagni = halfwidth / float(magni)
         perpvec = dirvec[1]*relmagni, -dirvec[0]*relmagni
 
-        colors = (col for col in polylinear_gradient(gradient, steps))
+        colors = (col for col in Gradient(gradient).interp(steps))
         xincr = dirvec[0]/float(steps)
         yincr = dirvec[1]/float(steps)
         incrlength = math.hypot(xincr,yincr)
