@@ -2279,6 +2279,29 @@ class Canvas:
         
         options = self._check_text_options(options)
 
+        def draw_textlines(img, textlines, pos, size, **options):
+            PIL_drawer = PIL.ImageDraw.Draw(img)
+
+            # PIL doesnt support transforms, so must get the pixel coords of the coordinate
+            # here only for y, because x is handled for each line depending on justify option below
+            x,y = xmin,ymin = pos
+            xmax,ymax = size
+            
+            # wrap text into lines, and write each line
+            horizjustify = options["justify"].lower()
+            for textline in textlines:
+                # horizontally justify the text relative to the bbox edges
+                fontwidth, fontheight = font.getsize(textline)
+                if horizjustify == "center":
+                    x = int(xmin + xmax/2.0 - fontwidth/2.0)
+                elif horizjustify == "right":
+                    x = xmax - fontwidth
+                elif horizjustify == "left":
+                    x = xmin
+                # draw and increment downwards
+                PIL_drawer.text((x,y), textline, fill=options["textcolor"], font=font)
+                y += fontheight
+
         if xy:
             x,y = xy
 
@@ -2294,25 +2317,33 @@ class Canvas:
                 x,y = xorig,yorig = self._offset_xy((x,y), xoffset, yoffset)
             
             # get font dimensions
+            textlines = text.split("\n")
             font = PIL.ImageFont.truetype(fontlocation, size=options["textsize"]) #, opacity=options["textopacity"])
-            fontwidth, fontheight = font.getsize(text)
+            widths,heights = zip(*[font.getsize(line) for line in textlines])
+            maxwidth, maxheight = max(widths),sum(heights)
             
             # anchor
+            def anchor_offset(x, y, anchor, size):
+                # update to post-rotate anchor
+                itemwidth,itemheight = size
+                if anchor == "center":
+                    x = int(x - itemwidth/2.0)
+                    y = int(y - itemheight/2.0)
+                else:
+                    x = int(x - itemwidth/2.0)
+                    y = int(y - itemheight/2.0)
+                    if "n" in anchor:
+                        y = int(y + itemheight/2.0)
+                    elif "s" in anchor:
+                        y = int(y - itemheight/2.0)
+                    if "e" in anchor:
+                        x = int(x - itemwidth/2.0)
+                    elif "w" in anchor:
+                        x = int(x + itemwidth/2.0)
+                return x,y
+            
             textanchor = options["anchor"].lower()
-            if textanchor == "center":
-                x = int(x - fontwidth/2.0)
-                y = int(y - fontheight/2.0)
-            else:
-                x = int(x - fontwidth/2.0)
-                y = int(y - fontheight/2.0)
-                if "n" in textanchor:
-                    y = int(y + fontheight/2.0)
-                elif "s" in textanchor:
-                    y = int(y - fontheight/2.0)
-                if "e" in textanchor:
-                    x = int(x - fontwidth/2.0)
-                elif "w" in textanchor:
-                    x = int(x + fontwidth/2.0)
+            x,y = anchor_offset(x, y, textanchor, (maxwidth,maxheight))
 
             # load or set default background box options
             bboxoptions = dict()
@@ -2325,7 +2356,7 @@ class Canvas:
             #### draw background box and or outline
             if bboxoptions["fillcolor"] or bboxoptions["outlinecolor"]:
                 x1,y1 = self.pixel2coord(x, y)
-                x2,y2 = self.pixel2coord(x+fontwidth, y+fontheight)
+                x2,y2 = self.pixel2coord(x+maxwidth, y+maxheight)
                 xmin,ymin = min((x1,x2)),min((y1,y2))
                 xmax,ymax = max((x1,x2)),max((y1,y2))
                 bbox = [xmin,ymin,xmax,ymax]
@@ -2361,37 +2392,19 @@ class Canvas:
 
                 self.draw_box(bbox=bbox, **bboxoptions)
 
-            # then draw text
             if rotate:
                 # write and rotate separate img
-                txt_img = PIL.Image.new('RGBA', font.getsize(text))
-                PIL_drawer = PIL.ImageDraw.Draw(txt_img)
-                PIL_drawer.text((0,0), text, fill=options["textcolor"], font=font)
+                txt_img = PIL.Image.new('RGBA', (maxwidth,maxheight))
+                draw_textlines(txt_img, textlines, (0,0), (maxwidth,maxheight), **options)
                 txt_img = txt_img.rotate(rotate, PIL.Image.BILINEAR, expand=1)
-                # update to post-rotate anchor
-                fontwidth,fontheight = txt_img.size
-                x,y = xorig,yorig
-                if textanchor == "center":
-                    x = int(x - fontwidth/2.0)
-                    y = int(y - fontheight/2.0)
-                else:
-                    x = int(x - fontwidth/2.0)
-                    y = int(y - fontheight/2.0)
-                    if "n" in textanchor:
-                        y = int(y + fontheight/2.0)
-                    elif "s" in textanchor:
-                        y = int(y - fontheight/2.0)
-                    if "e" in textanchor:
-                        x = int(x - fontwidth/2.0)
-                    elif "w" in textanchor:
-                        x = int(x + fontwidth/2.0)
+                pastex,pastey = anchor_offset(xorig, yorig, textanchor, txt_img.size)
                 # paste into main
                 self.drawer.flush()
-                self.img.paste(txt_img, (x,y), txt_img)
+                self.img.paste(txt_img, (pastex,pastey), txt_img)
+
             else:
-                PIL_drawer = PIL.ImageDraw.Draw(self.img)
                 self.drawer.flush()
-                PIL_drawer.text((x,y), text, fill=options["textcolor"], font=font)
+                draw_textlines(self.img, textlines, (x,y), (maxwidth,maxheight), **options)
 
         elif bbox:
             # dynamically decides optimal font size and wrap length
@@ -2453,7 +2466,6 @@ class Canvas:
             
             #### process text options
             fontlocation = fonthelper.get_fontpath(options["font"])
-            PIL_drawer = PIL.ImageDraw.Draw(self.img)
 
             #### incrementally cut size in half or double it until within 20 percent of desired height
             infiloop = False
@@ -2522,25 +2534,8 @@ class Canvas:
                 prevsize = cursize
                 cursize = nextsize
 
-            # PIL doesnt support transforms, so must get the pixel coords of the coordinate
-            # here only for y, because x is handled for each line depending on justify option below
-            y = ymin # already converted earlier
-
-            # wrap text into lines, and write each line
             self.drawer.flush()
-            horizjustify = options["justify"].lower()
-            for textline in textlines:
-                # horizontally justify the text relative to the bbox edges
-                fontwidth, fontheight = font.getsize(textline)
-                if horizjustify == "center":
-                    x = int(xmin + boxwidth/2.0 - fontwidth/2.0)
-                elif horizjustify == "right":
-                    x = xmax - fontwidth
-                elif horizjustify == "left":
-                    x = xmin
-                # draw and increment downwards
-                PIL_drawer.text((x,y), textline, fill=options["textcolor"], font=font)
-                y += fontheight
+            draw_textlines(self.img, textlines, (xmin,ymin), (boxwidth,boxheight), **options)
 
         # update changes to the aggdrawer, and remember to reapply transform
         self.drawer = aggdraw.Draw(self.img)
