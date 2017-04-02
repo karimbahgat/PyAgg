@@ -444,14 +444,17 @@ class Canvas:
         self.background = background
         self.ppi = ppi
 
+        # set canvas-wide parent options...
+        self.textoptions = {"font":"Calibri",
+                            "textcolor":(0,0,0),
+                            "textsize":"5%min", # 5% of minimum side
+                            "anchor":"center", "justify":"center"}
+
+
+        # customize misc default options...
+
         # by default, interpret all sizes in % of width
         self.default_unit = "%w"
-
-        # and baseline textsize as 8 for every 97 inch of ppi
-        self.default_textoptions = {"font":"Calibri",
-                                    "textcolor":(0,0,0),
-                                    "textsize":int(round(8 * (self.ppi / 97.0))),
-                                    "anchor":"center", "justify":"center"}
 
         # maybe also have default general drawingoptions
         # ...
@@ -474,7 +477,7 @@ class Canvas:
         newcanvas.background = self.background
         newcanvas.ppi = self.ppi
         newcanvas.default_unit = self.default_unit
-        newcanvas.default_textoptions = self.default_textoptions
+        newcanvas.textoptions = self.textoptions
         newcanvas.coordspace_transform = self.coordspace_transform
         newcanvas.coordspace_bbox = self.coordspace_bbox
         newcanvas.update_drawer_img()
@@ -2815,19 +2818,112 @@ class Canvas:
         # finish  
         return customoptions
 
-    def _check_text_options(self, customoptions):       
+    def _check_text_options(self, customoptions):
         customoptions = customoptions.copy()
-        
-        if "textsize" in customoptions:
-            textsize = customoptions["textsize"]
-            if isinstance(textsize, str) and textsize.endswith("%"):
-                textsize = self.default_textoptions["textsize"] * float(textsize[:-1]) / 100.0
-            if self.ppi != 97:
-                textsize *= self.ppi / 97.0 # textsize pixel resolution assumes 97 ppi, so must be adjusted for desired ppi
-            customoptions["textsize"] = int(round(textsize))
 
-        finaloptions = self.default_textoptions.copy()
+        def calc_fontsize(width=None, height=None, font=None):
+            #### process text options
+            fontlocation = fonthelper.get_fontpath(font)
+
+            #### incrementally cut size in half or double it until within 20 percent of desired height
+            infiloop = False
+            prevsize = None
+            cursize = 12
+            nextsize = None
+            
+            while True: 
+                # calculate size metrics for current
+                font = PIL.ImageFont.truetype(fontlocation, size=cursize) 
+                fontwidth, fontheight = font.getsize("H") # arbitrary big character, we are only interested in height
+
+                refsize = width if width else height
+                refratio = fontheight / float(refsize)
+
+                # exit if size is within threshold of target size
+                ## print fontheight,refsize,refratio
+                if 0.9 <= refratio <= 1.1:
+                    break 
+
+                # break out of infinite loop between two almost same sizes
+                if infiloop:
+                    ## print("infinite loop, break!")
+                    break
+
+                # check if too big or small
+                toobig = False
+                toosmall = False
+                if refratio < 1:
+                    toosmall = True
+                else:
+                    toobig = True
+
+                # mark as infinite loop once increments get smaller than 1
+                if prevsize and cursize-prevsize in (-1,0,1):
+                    infiloop = True
+                    # prefer to choose the smaller of the two repeating sizes
+                    if toobig:
+                        nextsize = cursize-1
+
+                # or if prev change went too far, try in between prev and cur size
+                elif prevsize and ((toosmall and prevsize > cursize) or (toobig and prevsize < cursize)):
+                    ## print("too far, flip!")
+                    nextsize = int(round((prevsize + cursize) / 2.0))
+
+                # otherwise double or halve size based on fit
+                else:
+                    if toobig:
+                        nextsize = int(round(cursize / 2.0))
+                        ## print("too big!")
+                    elif toosmall:
+                        nextsize = cursize * 2
+                        ## print("too small!")
+
+                # update vars for next iteration
+                ## print(prevsize, cursize, nextsize)
+                prevsize = cursize
+                cursize = nextsize
+
+            return cursize
+
+        def parse_textsize(size, font):
+            # determine target pixel size
+            if isinstance(size, str):
+                if size.endswith("%"):
+                    defsize = parse_textsize(self.textoptions["textsize"], font=font)
+                    size = defsize * float(size[:-1]) / 100.0
+                    return size
+                else:
+                    if size.endswith("%min"):
+                        if self.width <= self.height:
+                            size = size.replace("%min","%w")
+                        elif self.height < self.width:
+                            size = size.replace("%min","%h")
+                    elif size.endswith("%max"):
+                        if self.width >= self.height:
+                            size = size.replace("%max","%w")
+                        elif self.height > self.width:
+                            size = size.replace("%max","%h")
+                            
+                    if size.endswith("%w"):
+                        percnum = float(size[:-2])
+                        percpix = self.width / 100.0 * percnum
+                        return calc_fontsize(width=percpix, font=font)
+                    elif size.endswith("%h"):
+                        percnum = float(size[:-2])
+                        percpix = self.height / 100.0 * percnum
+                        return calc_fontsize(height=percpix, font=font)
+
+            else:
+                if self.ppi != 97:
+                    size *= self.ppi / 97.0 # textsize pixel resolution assumes 97 ppi, so must be adjusted for desired ppi
+                return size
+
+        finaloptions = self.textoptions.copy()
         finaloptions.update(customoptions)
+
+        textsize = parse_textsize(finaloptions["textsize"], font=finaloptions["font"])
+        finaloptions["textsize"] = int(round(textsize))
+        
         return finaloptions
 
     def _offset_xy(self, xy, xoffset=None, yoffset=None):
