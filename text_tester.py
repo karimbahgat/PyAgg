@@ -20,7 +20,7 @@ broken up
 into lines
 and aligned to the right""", (100,100), anchor="se", justify="right")
 
-c.draw_text("This is an interesing textbox that should be autowrapped", bbox=[60,60,80,80])
+c.draw_text("This is an interesing textbox that should be autowrapped", bbox=[60,60,100,70])
 
 c.draw_text("25%", (100,0), textsize="25%h", anchor="ne")
 

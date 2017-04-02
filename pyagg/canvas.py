@@ -2287,8 +2287,8 @@ class Canvas:
 
             # PIL doesnt support transforms, so must get the pixel coords of the coordinate
             # here only for y, because x is handled for each line depending on justify option below
-            x,y = xmin,ymin = pos
-            xmax,ymax = size
+            x,y = xleft,ytop = pos
+            xwidth,yheight = size
             
             # wrap text into lines, and write each line
             horizjustify = options["justify"].lower()
@@ -2296,11 +2296,11 @@ class Canvas:
                 # horizontally justify the text relative to the bbox edges
                 fontwidth, fontheight = font.getsize(textline)
                 if horizjustify == "center":
-                    x = int(xmin + xmax/2.0 - fontwidth/2.0)
+                    x = int(xleft + xwidth/2.0 - fontwidth/2.0)
                 elif horizjustify == "right":
-                    x = xmax - fontwidth
+                    x = xleft + xwidth - fontwidth
                 elif horizjustify == "left":
-                    x = xmin
+                    x = xleft
                 # draw and increment downwards
                 PIL_drawer.text((x,y), textline, fill=options["textcolor"], font=font)
                 y += fontheight
