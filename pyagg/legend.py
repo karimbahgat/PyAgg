@@ -151,14 +151,16 @@ class Label(_Symbol):
         fontlocation = fonthelper.get_fontpath(info["font"])
         font = PIL.ImageFont.truetype(fontlocation, size=info["textsize"])
         text = self.text if isinstance(self.text, (unicode,str)) else str(self.text)
-        reqwidth, reqheight = font.getsize(text)
+        textlines = text.split("\n")
+        widths,heights = zip(*[font.getsize(line) for line in textlines])
+        reqwidth, reqheight = max(widths),sum(heights)
                     
         # create canvas and draw
         c = Canvas(width=reqwidth, height=reqheight)
         c.set_default_unit("px")
         x = reqwidth / 2.0
         y = reqheight / 2.0
-        c.draw_text(self.text, xy=(x,y), anchor="center", **self.kwargs)
+        c.draw_text(text, xy=(x,y), anchor="center", **self.kwargs)
 
         return c
 

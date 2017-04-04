@@ -448,7 +448,7 @@ class Canvas:
         self.textoptions = {"font":"Calibri",
                             "textcolor":(0,0,0),
                             "textsize":"5%min", # 5% of minimum side
-                            "anchor":"center", "justify":"center"}
+                            "anchor":"center", "justify":"left"}
 
 
         # customize misc default options...
