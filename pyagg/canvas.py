@@ -2212,20 +2212,23 @@ class Canvas:
         
         - *coords*: A list of coordinates for the polygon exterior.
         - *holes* (optional): A list of one or more polygon hole coordinates, one for each hole. Defaults to no holes.
-        - *options* (optional): Keyword args dictionary of draw styling options. 
+        - *options* (optional): Keyword args dictionary of draw styling options.
+                                Fillcolor can also be a function taking a width and height, returning a canvas of same size.
+                                Fillmask is an optional function taking a width and height, returning a canvas of same size that defines which areas will be filled.
         """
         options = self._check_options(options)
         
         path = aggdraw.Path()
         
         if not hasattr(coords[0], "__iter__"):
-            coords = _grouper(coords, 2)
-        else: coords = (point for point in coords)
+            coords = list(_grouper(coords, 2))
+        else: coords = list(coords)
 
         def traverse_ring(coords):
             # begin
+            coords = (point for point in coords)
             startx,starty = next(coords)
-            path.moveto(startx, starty)
+            path.moveto(startx, starty) 
             
             # connect to each successive point
             for nextx,nexty in coords:
@@ -2243,16 +2246,55 @@ class Canvas:
             else: hole = (point for point in hole)
             traverse_ring(hole)
 
-        # options        
-        args = []
-        if options["fillcolor"]:
-            fillbrush = aggdraw.Brush(options["fillcolor"])
-            args.append(fillbrush)
-        if options["outlinecolor"]:
-            outlinepen = aggdraw.Pen(options["outlinecolor"], options["outlinewidth"])
-            args.append(outlinepen)
+        # fillmask or picture
+        if "fillmask" in options or hasattr(options["fillcolor"], "__call__"): 
+            xs,ys = zip(*coords)
+            xmin,ymin,xmax,ymax = min(xs),min(ys),max(xs),max(ys)
+            w,h = xmax-xmin, ymax-ymin
+            pw,ph = self.parse_relative_dist(str(w)+"x"), self.parse_relative_dist(str(h)+"y")
+            pw,ph = int(pw),int(ph)
+
+            # use insides of the polygon as mask
+            mask = Canvas(width=pw, height=ph, background="black", mode="RGB")
+            mask.custom_space(*[xmin,ymin,xmax,ymax])
+            mask.drawer.path((0,0), path, aggdraw.Brush("white"))
+            mask.drawer.flush()
+            mask = mask.img.convert("L")
+
+            # add additional mask from user
+            if "fillmask" in options:
+                maskfunc = options["fillmask"] 
+                custommask = maskfunc(pw,ph)
+                custommask.drawer.flush()
+                custommask = custommask.img.convert("L")
+                mask = PIL.ImageMath.eval("a & b", a=mask, b=custommask).convert("L")
+
+            # paste color or image
+            final = PIL.Image.new("RGBA", (pw,ph))
+            fill = options["fillcolor"]
             
-        self.drawer.path((0,0), path, *args)
+            # picture/texture fill
+            if hasattr(fill, "__call__"):
+                fill = fill(pw,ph).img
+            final.paste(fill,
+                        mask=mask)
+            self.paste(final, bbox=[xmin,ymin,xmax,ymax])
+
+            # draw outline on top
+            if options["outlinecolor"]:
+                outlinepen = aggdraw.Pen(options["outlinecolor"], options["outlinewidth"])
+                self.drawer.path((0,0), path, None, outlinepen)
+
+        else:
+            # normal fast drawing
+            args = []
+            if options["fillcolor"]:
+                fillbrush = aggdraw.Brush(options["fillcolor"])
+                args.append(fillbrush)
+            if options["outlinecolor"]:
+                outlinepen = aggdraw.Pen(options["outlinecolor"], options["outlinewidth"])
+                args.append(outlinepen)
+            self.drawer.path((0,0), path, *args)
 
     def draw_text(self, text, xy=None, bbox=None, rotate=None, **options):
         """
