@@ -137,6 +137,7 @@ class Label(_Symbol):
         self.text = text
         self.refcanvas = refcanvas
         self.kwargs = dict(kwargs)
+        self.kwargs["textsize"] = self.kwargs.get("textsize", "100%h")
 
     def render(self):
         # fillsize is used directly
@@ -303,6 +304,8 @@ class _BaseGroup:
 class BaseGroup(_BaseGroup):
     # TODO: This is where title should be allowed
     # all others with titles or labels should inherit from this one
+    # TODO: Label should be expressed as % of symbol maybe???
+    # ...
     def __init__(self, refcanvas=None, items=None, title="", titleoptions=None, direction="e", padding=0.05, anchor="center", **boxoptions):
         self.items = []
 
@@ -563,9 +566,9 @@ class GradientSymbol(BaseGroup):
         grad = _Gradient(gradient, length, thickness, refcanvas=refcanvas,
                          direction=direction, padding=0)
 
-        self.add_item(Label(ticks[0], **labeloptions))
+        self.add_item(Label(ticks[0], refcanvas=refcanvas, **labeloptions))
         self.add_item(grad)
-        self.add_item(Label(ticks[-1], **labeloptions))
+        self.add_item(Label(ticks[-1], refcanvas=refcanvas, **labeloptions))
 
 
 
