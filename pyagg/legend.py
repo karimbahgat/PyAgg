@@ -20,11 +20,13 @@ class _Symbol:
     def render(self):
         # WARNING: MESSY AND ONLY WORKING IN SOME CASES, OUTLINE NOT CURRENTLY CONSIDERED
         # NEED BETTER AND SIMPLER APPROACH...
+
+        kwargs = dict(self.kwargs)
         
         # get required dimensions
         if hasattr(self.type, "__call__"):
             # symbol is specified with a function that returns its rendered canvas (lowlevel)
-            rendered = self.type(**self.kwargs)
+            rendered = self.type(**kwargs)
             reqwidth = rendered.width
             reqheight = rendered.height
             
@@ -32,7 +34,7 @@ class _Symbol:
             # symbol is specified with the canvas method type and args (more convenient)
             if self.refcanvas:
                 # dimensions autoretrieved and converted to pixels from refcanvas
-                info = dict(self.refcanvas._check_options(self.kwargs))
+                info = dict(self.refcanvas._check_options(kwargs))
                 if self.type == "line":
                     reqheight = info["fillsize"]
                     reqwidth = reqheight * 5  # 5 times longer to look like a line
@@ -41,7 +43,7 @@ class _Symbol:
                     reqheight = info["fillheight"]
             else:
                 # user has to specify size manually
-                info = dict(self.kwargs)
+                info = dict(kwargs)
                 info.update(fillwidth=info["fillsize"], fillheight=info["fillsize"])
 
                 # calculate size
@@ -59,8 +61,9 @@ class _Symbol:
                     raise Exception("Symbol type not recognized")
 
             # make sure to pass size to drawing func
-            self.kwargs["fillwidth"] = reqwidth
-            self.kwargs["fillheight"] = reqheight
+            kwargs["fillwidth"] = reqwidth
+            kwargs["fillheight"] = reqheight
+            kwargs["outlinewidth"] = info.get("outlinewidth")
 
             # add outline to size (only affecting canvas size, not the draw size)
             outlinewidth = info.get("outlinewidth") if info.get("outlinewidth") and info.get("outlinecolor") else 0
@@ -77,7 +80,7 @@ class _Symbol:
         else:
             drawtype = "box" if self.type in ("polygon","line") else self.type
             func = getattr(c, "draw_"+drawtype)
-            func(xy=(x,y), anchor="center", **self.kwargs)
+            func(xy=(x,y), anchor="center", **kwargs)
 
         c.drawer.flush() # STRANGE BUG, DOESNT RENDER UNLESS CALLING FLUSH HERE...
         c.update_drawer_img()
@@ -269,13 +272,16 @@ class _BaseGroup:
 
         else:
             raise Exception("Invalid direction value")
-
+        
         # create the canvas
         c = Canvas(reqwidth, reqheight, background=None)
         c.draw_box(bbox=[0,0,reqwidth-1,reqheight-1], **boxoptions)
 
         # draw in direction
+        #print "drawing group",reqwidth,reqheight
         for symbol in rensymbols:
+            #print "child size",symbol.width,symbol.height
+            #symbol.view()
             c.paste(symbol, (x,y), anchor=anchor)
             # TODO: fix error where semitransparent colors disappear entirely when pasting
             # ...
