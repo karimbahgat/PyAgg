@@ -461,7 +461,24 @@ class BaseGroup(_BaseGroup):
                 valueformat = lambda val: format(val, frmtstring)
             breaks = [valueformat(brk) for brk in breaks]
 
-        if valuetype == "continuous":
+        if valuetype == "proportional":
+            # TODO: Experimental, not fully tested...
+            if not "side" in labeloptions: labeloptions["side"] = "n" 
+            group = SymbolGroup(direction="center", anchor="s", title=title, titleoptions=titleoptions, padding=0) # for continuous, sizes stay in one place
+            breaks = [breaks[0], breaks[-1]]
+            classvalues = [classvalues[0], classvalues[-1]]
+            for brk,classval in zip(breaks, classvalues):
+                _symboloptions = dict(symboloptions)
+                _symboloptions.update(fillsize=classval)
+                obj = FillSizeSymbol(shape=shape,
+                                       refcanvas=self.refcanvas, # draw sizes relative to refcanvas
+                                       label="%s"%brk, labeloptions=labeloptions,
+                                       padding=0, # crucial to make them into a continuous gradient
+                                       **_symboloptions)
+                group.add_item(obj)
+            self.add_item(group)
+
+        elif valuetype == "continuous":
             if not "side" in labeloptions: labeloptions["side"] = "e"
             prevbrk = breaks[0]
             group = SymbolGroup(direction="center", anchor=anchor, title=title, titleoptions=titleoptions, padding=0) # for continuous, sizes stay in one place

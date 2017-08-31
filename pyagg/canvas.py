@@ -445,7 +445,7 @@ class Canvas:
         self.ppi = ppi
 
         # set canvas-wide parent options...
-        self.textoptions = {"font":"Calibri",
+        self.textoptions = {"font":"Segoe UI",
                             "textcolor":(0,0,0),
                             "textsize":"5%min", # 5% of minimum side
                             "anchor":"center", "justify":"left"}
