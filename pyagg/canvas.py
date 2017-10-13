@@ -317,7 +317,7 @@ class Gradient:
             # Interpolate RGB vector for color at the current value of t
                 curr_vector = [
                 int(s[j] + (float(t)/(n-1))*(f[j]-s[j]))
-                for j in range(3)
+                for j in range(len(self.colorstops[0]))
                 ]
                 # Add it to our list of output colors
                 RGB_list.append(curr_vector)
@@ -987,11 +987,11 @@ class Canvas:
         if tolerance == 0:
             image = self.img.convert("RGBA")
             r,g,b,a = image.split()
-            red_mask = r.point(lambda px: 0 if px == color[0] else 255, "L")
-            green_mask = g.point(lambda px: 0 if px == color[1] else 255, "L")
-            blue_mask = b.point(lambda px: 0 if px == color[2] else 255, "L")
-            all_mask = PIL.ImageMath.eval("convert(r | g | b, 'L')", r=red_mask, g=green_mask, b=blue_mask)
-            image.putalpha(all_mask)
+            red_mask = r.point(lambda px: 255 if px == color[0] else 0, "L")
+            green_mask = g.point(lambda px: 255 if px == color[1] else 0, "L")
+            blue_mask = b.point(lambda px: 255 if px == color[2] else 0, "L")
+            all_mask = PIL.ImageMath.eval("convert(r & g & b, 'L')", r=red_mask, g=green_mask, b=blue_mask)
+            #image.putalpha(all_mask)
         else:
             image = self.img.convert("RGBA")
             r,g,b,a = image.split()
@@ -1008,11 +1008,11 @@ class Canvas:
             blue_diff = b.point(lambda px: diff(px,color[2]), "L")
             avg_diff = PIL.ImageMath.eval("convert((r+g+b) / 3.0, 'L')",
                                           r=red_diff, g=green_diff, b=blue_diff)
-            all_mask = avg_diff.point(lambda px: 0 if px <= tolerance else 255)
-            image.putalpha(all_mask)
+            all_mask = avg_diff.point(lambda px: 255 if px <= tolerance else 0)
+            #image.putalpha(all_mask)
 
-        newimg = PIL.Image.new("RGB", image.size, newcolor)
-        newimg.paste(image, (0,0), image)
+        newimg = image #PIL.Image.new("RGB", image.size, newcolor)
+        newimg.paste(newcolor, (0,0), all_mask)
 
         self.img = newimg
         self.update_drawer_img()
