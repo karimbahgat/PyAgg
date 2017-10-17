@@ -550,7 +550,7 @@ class FillSizeSymbol(BaseGroup):
         symboloptions = dict(symboloptions)
         symboloptions["fillcolor"] = symboloptions.get("fillcolor", None)
         symboloptions["outlinecolor"] = symboloptions.get("outlinecolor", "black")
-        symboloptions["outlinewidth"] = symboloptions.get("outlinewidth", "1%min")
+        symboloptions["outlinewidth"] = symboloptions.get("outlinewidth", "0.6%min")
         obj = _Symbol(type=shape, refcanvas=refcanvas, **symboloptions)
         self.add_item(obj)
 
@@ -570,7 +570,7 @@ class FillColorSymbol(BaseGroup):
         symboloptions = dict(symboloptions)
         symboloptions["fillsize"] = symboloptions.get("fillsize", "2%min")
         symboloptions["outlinecolor"] = symboloptions.get("outlinecolor", "black")
-        symboloptions["outlinewidth"] = symboloptions.get("outlinewidth", "1%min")
+        symboloptions["outlinewidth"] = symboloptions.get("outlinewidth", "0.6%min")
         
         obj = _Symbol(type=shape, refcanvas=refcanvas, **symboloptions)
         self.add_item(obj)
