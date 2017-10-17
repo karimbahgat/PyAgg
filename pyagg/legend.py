@@ -140,7 +140,7 @@ class Label(_Symbol):
         self.text = text
         self.refcanvas = refcanvas
         self.kwargs = dict(kwargs)
-        self.kwargs["textsize"] = self.kwargs.get("textsize", "100%h")
+        self.kwargs["textsize"] = self.kwargs.get("textsize", "2.1%w") #8)
 
     def render(self):
         # fillsize is used directly
@@ -164,7 +164,10 @@ class Label(_Symbol):
         c.set_default_unit("px")
         x = reqwidth / 2.0
         y = reqheight / 2.0
-        c.draw_text(text, xy=(x,y), anchor="center", **self.kwargs)
+        info['anchor'] = 'center'
+        info['textsize'] = '100%h' # to make sure fills its reqsize, which was determined by the inaccurate .getsize()
+        c.draw_text(text, xy=(x,y), **info)
+        #c.view()
 
         return c
 
@@ -410,6 +413,7 @@ class BaseGroup(_BaseGroup):
                 _symboloptions = dict(symboloptions)
                 _symboloptions.update(fillcolor=classvalues[i], outlinecolor=None)
                 obj = FillColorSymbol(shape=shape,
+                                      refcanvas=self.refcanvas,
                                        label="%s to %s"%(prevbrk,nextbrk), labeloptions=labeloptions,
                                        padding=0, # crucial to make them into a continuous gradient
                                        **_symboloptions)
@@ -425,6 +429,7 @@ class BaseGroup(_BaseGroup):
                 _symboloptions = dict(symboloptions)
                 _symboloptions.update(fillcolor=classvalues[i])
                 obj = FillColorSymbol(shape=shape,
+                                      refcanvas=self.refcanvas,
                                        label="%s to %s"%(prevbrk,nextbrk), labeloptions=labeloptions,
                                       padding=padding,
                                        **_symboloptions)
@@ -439,6 +444,7 @@ class BaseGroup(_BaseGroup):
                 _symboloptions = dict(symboloptions)
                 _symboloptions.update(fillcolor=classval)
                 obj = FillColorSymbol(shape=shape,
+                                      refcanvas=self.refcanvas,
                                        label="%s"%category, labeloptions=labeloptions,
                                       padding=padding,
                                        **_symboloptions)
@@ -521,7 +527,7 @@ class Symbol(BaseGroup):
                  **symboloptions):
         labeloptions = labeloptions or dict()
         if "padding" not in labeloptions: labeloptions["padding"] = padding
-        BaseGroup.__init__(self, title=label, titleoptions=labeloptions, padding=padding)
+        BaseGroup.__init__(self, refcanvas=refcanvas, title=label, titleoptions=labeloptions, padding=padding)
         
         symboloptions = dict(symboloptions)
         
@@ -536,7 +542,7 @@ class FillSizeSymbol(BaseGroup):
                  **symboloptions):
         labeloptions = labeloptions or dict()
         if "padding" not in labeloptions: labeloptions["padding"] = padding
-        BaseGroup.__init__(self, title=label, titleoptions=labeloptions, padding=padding)
+        BaseGroup.__init__(self, refcanvas=refcanvas, title=label, titleoptions=labeloptions, padding=padding)
 
         if not "fillsize" in symboloptions:
             raise Exception("Fillsize must be set when creating a FillSizeSymbol")
@@ -544,7 +550,7 @@ class FillSizeSymbol(BaseGroup):
         symboloptions = dict(symboloptions)
         symboloptions["fillcolor"] = symboloptions.get("fillcolor", None)
         symboloptions["outlinecolor"] = symboloptions.get("outlinecolor", "black")
-        symboloptions["outlinewidth"] = symboloptions.get("outlinewidth", 1)
+        symboloptions["outlinewidth"] = symboloptions.get("outlinewidth", "1%min")
         obj = _Symbol(type=shape, refcanvas=refcanvas, **symboloptions)
         self.add_item(obj)
 
@@ -556,15 +562,15 @@ class FillColorSymbol(BaseGroup):
                  **symboloptions):
         labeloptions = labeloptions or dict()
         if "padding" not in labeloptions: labeloptions["padding"] = padding
-        BaseGroup.__init__(self, title=label, titleoptions=labeloptions, padding=padding)
+        BaseGroup.__init__(self, refcanvas=refcanvas, title=label, titleoptions=labeloptions, padding=padding)
 
         if not "fillcolor" in symboloptions:
             raise Exception("Fillcolor must be set when creating a FillColorSymbol")
         
         symboloptions = dict(symboloptions)
-        symboloptions["fillsize"] = symboloptions.get("fillsize", 20)
+        symboloptions["fillsize"] = symboloptions.get("fillsize", "2%min")
         symboloptions["outlinecolor"] = symboloptions.get("outlinecolor", "black")
-        symboloptions["outlinewidth"] = symboloptions.get("outlinewidth", 1)
+        symboloptions["outlinewidth"] = symboloptions.get("outlinewidth", "1%min")
         
         obj = _Symbol(type=shape, refcanvas=refcanvas, **symboloptions)
         self.add_item(obj)
@@ -584,7 +590,7 @@ class GradientSymbol(BaseGroup):
         titleoptions = titleoptions or dict()
         labeloptions = labeloptions or dict()
         #if "padding" not in labeloptions: labeloptions["padding"] = padding
-        BaseGroup.__init__(self, title=title, titleoptions=titleoptions, padding=padding, direction=direction)
+        BaseGroup.__init__(self, refcanvas=refcanvas, title=title, titleoptions=titleoptions, padding=padding, direction=direction)
 
         grad = _Gradient(gradient, length, thickness, refcanvas=refcanvas,
                          direction=direction, padding=0)
