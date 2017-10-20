@@ -165,7 +165,7 @@ class Label(_Symbol):
         x = reqwidth / 2.0
         y = reqheight / 2.0
         info['anchor'] = 'center'
-        info['textsize'] = '100%h' # to make sure fills its reqsize, which was determined by the inaccurate .getsize()
+        info['textsize'] /= c.ppi / 97.0 # canvas will blow up size based on ppi, so input the inverse to end up at same size
         c.draw_text(text, xy=(x,y), **info)
         #c.view()
 
@@ -364,7 +364,7 @@ class BaseGroup(_BaseGroup):
         labeloptions = labeloptions or dict()
 
         if not "side" in labeloptions: labeloptions["side"] = "e"
-        group = SymbolGroup(direction="center", anchor=anchor, title=title, titleoptions=titleoptions, padding=0) # for continuous, sizes stay in one place
+        group = SymbolGroup(refcanvas=self.refcanvas, direction="center", anchor=anchor, title=title, titleoptions=titleoptions, padding=0) # for continuous, sizes stay in one place
         for shape,label,symboloptions in symbols:
             _symboloptions = dict(symboloptions)
             obj = Symbol(shape=shape,
@@ -397,7 +397,7 @@ class BaseGroup(_BaseGroup):
             _symboloptions = dict(symboloptions)
             # TODO: symgroup south dir makes correct, but same dir goes kookoo...
             # ...
-            group = SymbolGroup(direction="s", anchor=anchor, title=title, titleoptions=titleoptions, padding=0)
+            group = SymbolGroup(refcanvas=self.refcanvas, direction="s", anchor=anchor, title=title, titleoptions=titleoptions, padding=0)
             obj = GradientSymbol(classvalues, breaks, length=_symboloptions["length"], thickness=_symboloptions["thickness"],
                                  padding=padding,
                                  refcanvas=self.refcanvas,
@@ -408,7 +408,7 @@ class BaseGroup(_BaseGroup):
         elif valuetype == "continuous":
             if not "side" in labeloptions: labeloptions["side"] = "e"
             prevbrk = breaks[0]
-            group = SymbolGroup(direction=direction, anchor=anchor, title=title, titleoptions=titleoptions, padding=0)
+            group = SymbolGroup(refcanvas=self.refcanvas, direction=direction, anchor=anchor, title=title, titleoptions=titleoptions, padding=0)
             for i,nextbrk in enumerate(breaks[1:]):
                 _symboloptions = dict(symboloptions)
                 _symboloptions.update(fillcolor=classvalues[i], outlinecolor=None)
@@ -424,7 +424,7 @@ class BaseGroup(_BaseGroup):
         elif valuetype == "discrete":
             if not "side" in labeloptions: labeloptions["side"] = "e"
             prevbrk = breaks[0]
-            group = SymbolGroup(direction=direction, anchor=anchor, title=title, titleoptions=titleoptions, padding=0)
+            group = SymbolGroup(refcanvas=self.refcanvas, direction=direction, anchor=anchor, title=title, titleoptions=titleoptions, padding=0)
             for i,nextbrk in enumerate(breaks[1:]):
                 _symboloptions = dict(symboloptions)
                 _symboloptions.update(fillcolor=classvalues[i])
@@ -439,7 +439,7 @@ class BaseGroup(_BaseGroup):
 
         elif valuetype == "categorical":
             if not "side" in labeloptions: labeloptions["side"] = "e"
-            group = SymbolGroup(direction=direction, anchor=anchor, title=title, titleoptions=titleoptions, padding=0)
+            group = SymbolGroup(refcanvas=self.refcanvas, direction=direction, anchor=anchor, title=title, titleoptions=titleoptions, padding=0)
             for category,classval in zip(breaks,classvalues):
                 _symboloptions = dict(symboloptions)
                 _symboloptions.update(fillcolor=classval)
@@ -470,7 +470,7 @@ class BaseGroup(_BaseGroup):
         if valuetype == "proportional":
             # TODO: Experimental, not fully tested...
             if not "side" in labeloptions: labeloptions["side"] = "n" 
-            group = SymbolGroup(direction="center", anchor="s", title=title, titleoptions=titleoptions, padding=0) # for continuous, sizes stay in one place
+            group = SymbolGroup(refcanvas=self.refcanvas, direction="center", anchor="s", title=title, titleoptions=titleoptions, padding=0) # for continuous, sizes stay in one place
             breaks = [breaks[0], breaks[-1]]
             classvalues = [classvalues[0], classvalues[-1]]
             for brk,classval in zip(breaks, classvalues):
@@ -487,7 +487,7 @@ class BaseGroup(_BaseGroup):
         elif valuetype == "continuous":
             if not "side" in labeloptions: labeloptions["side"] = "e"
             prevbrk = breaks[0]
-            group = SymbolGroup(direction="center", anchor=anchor, title=title, titleoptions=titleoptions, padding=0) # for continuous, sizes stay in one place
+            group = SymbolGroup(refcanvas=self.refcanvas, direction="center", anchor=anchor, title=title, titleoptions=titleoptions, padding=0) # for continuous, sizes stay in one place
             for i,nextbrk in enumerate(breaks[1:]):
                 _symboloptions = dict(symboloptions)
                 _symboloptions.update(fillsize=classvalues[i])
@@ -503,7 +503,7 @@ class BaseGroup(_BaseGroup):
         elif valuetype == "discrete":
             if not "side" in labeloptions: labeloptions["side"] = "e"
             prevbrk = breaks[0]
-            group = SymbolGroup(direction=direction, anchor=anchor, title=title, titleoptions=titleoptions, padding=0)
+            group = SymbolGroup(refcanvas=self.refcanvas, direction=direction, anchor=anchor, title=title, titleoptions=titleoptions, padding=0)
             for i,nextbrk in enumerate(breaks[1:]):
                 _symboloptions = dict(symboloptions)
                 _symboloptions.update(fillsize=classvalues[i])
