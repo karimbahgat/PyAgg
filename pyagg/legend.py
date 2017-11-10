@@ -473,7 +473,7 @@ class BaseGroup(_BaseGroup):
             group = SymbolGroup(refcanvas=self.refcanvas, direction="center", anchor="s", title=title, titleoptions=titleoptions, padding=0) # for continuous, sizes stay in one place
             breaks = [breaks[0], breaks[-1]]
             classvalues = [classvalues[0], classvalues[-1]]
-            for brk,classval in zip(breaks, classvalues):
+            for brk,classval in sorted(zip(breaks, classvalues), key=lambda(b,cv): cv, reverse=True):
                 _symboloptions = dict(symboloptions)
                 _symboloptions.update(fillsize=classval)
                 obj = FillSizeSymbol(shape=shape,
