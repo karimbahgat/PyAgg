@@ -1037,15 +1037,23 @@ class Canvas:
         colors = Gradient(gradient).interp(256)
 
         # put into palette
-        colors = ((rgb[0],rgb[1],rgb[2]) for rgb in colors)
-        plt = [spec for rgb in colors for spec in rgb]
-        if self.img.mode == "RGBA":
+        mode = self.img.mode
+        rgbs = ((rgb[0],rgb[1],rgb[2]) for rgb in colors)
+        plt = [spec for rgb in rgbs for spec in rgb]
+        if mode == "RGBA":
             r,g,b,a = self.img.split()
         self.img = self.img.convert("L")
         self.img.putpalette(plt)
-        if self.img.mode == "RGBA":
-            self.img.putalpha(a)
         self.img = self.img.convert("RGBA")
+        # put alpha into the palette
+        if mode == "RGBA" and len(colors[0]) == 4:
+            alphas = [rgb[3] for rgb in colors]
+            gradalpha = self.img.convert("L").point(lut=alphas)
+            # gradient alpha can only lessen the original alpha
+            a = PIL.ImageMath.eval('min(a1,a2)', a1=a, a2=gradalpha).convert('L')
+        # apply gradient transparancy to the paletted img
+        if mode == "RGBA":
+            self.img.putalpha(a)
         self.update_drawer_img()
 
 ##        self.percent_space()
