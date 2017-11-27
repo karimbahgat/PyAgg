@@ -351,8 +351,7 @@ class LineGraph:
         # draw categories
         for category,dict in self.categories.items():
             valuepairs = zip(dict["x"], dict["y"])
-            flat = [xory for xy in valuepairs for xory in xy]
-            canvas.draw_line(flat, **dict["options"])
+            canvas.draw_line(valuepairs, **dict["options"])
             # test add label next to last line point
             if dict["options"]["placelabel"] == "lineend":
                 canvas.draw_text(category, xy=valuepairs[-1],

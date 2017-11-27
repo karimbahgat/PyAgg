@@ -1315,11 +1315,11 @@ class Canvas:
             raise Exception("Invalid ticktype")
             
         if "fillsize" not in kwargs:
-            kwargs["fillsize"] = "1px"
+            kwargs["fillsize"] = "0.7%min"
         if "fillcolor" not in kwargs:
             kwargs["fillcolor"] = "black"
         if "fillsize" not in tickoptions:
-            tickoptions["fillsize"] = "0.4%min"
+            tickoptions["fillsize"] = "0.7%min"
         if "fillcolor" not in tickoptions:
             tickoptions["fillcolor"] = "black"
         if not tickfunc:
@@ -1854,6 +1854,10 @@ class Canvas:
             coords = _grouper(coords, 2)
         else: coords = (point for point in coords)
 
+        # convert coords to pixels and temp disable transform bc all buffers etc have already been converted to pixels
+        coords = (self.coord2pixel(*xy) for xy in coords)
+        self.drawer.settransform() 
+
         if volume or (options.get("outlinecolor") and options.get("outlinewidth")):
             # enables outline and varying line volume thickness
 
@@ -2210,6 +2214,9 @@ class Canvas:
 
                 # draw the constructed path
                 self.drawer.path((0,0), path, *args)
+
+        # reinstate the drawtransform
+        self.drawer.settransform(self.coordspace_transform)
 
     def draw_polygon(self, coords, holes=[], **options):
         """
@@ -2827,7 +2834,7 @@ class Canvas:
                                                          canvassize=[self.width,self.height],
                                                          coordsize=[self.coordspace_width,self.coordspace_height])
         else:
-            customoptions["fillsize"] = units.parse_diststring("0.7%w", ppi=self.ppi, canvassize=[self.width,self.height])
+            customoptions["fillsize"] = units.parse_diststring("0.7%min", ppi=self.ppi, canvassize=[self.width,self.height])
         if "fillwidth" in customoptions:
             customoptions["fillwidth"] = units.parse_dist(customoptions["fillwidth"],
                                                          ppi=self.ppi,
@@ -2851,7 +2858,8 @@ class Canvas:
                                                          default_unit=self.default_unit,
                                                          canvassize=[self.width,self.height],
                                                          coordsize=[self.coordspace_width,self.coordspace_height])
-        else: customoptions["outlinewidth"] = units.parse_diststring("0.07%w", ppi=self.ppi, canvassize=[self.width,self.height])
+        else:
+            customoptions["outlinewidth"] = units.parse_diststring("0.07%min", ppi=self.ppi, canvassize=[self.width,self.height])
         
         # colors
         if "fillcolor" not in customoptions:
