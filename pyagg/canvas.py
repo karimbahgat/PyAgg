@@ -11,6 +11,7 @@ from __future__ import division
 # Import dependencies
 import PIL, PIL.Image, PIL.ImageTk, PIL.ImageDraw, PIL.ImageFont
 import PIL.ImageOps, PIL.ImageChops, PIL.ImageMath, PIL.ImageEnhance
+import aggdraw
 
 # Import builtins
 import sys, os
@@ -42,46 +43,8 @@ PYVERSION = sys.version[:3]
 if sys.maxsize == 9223372036854775807: PYBITS = "64"
 else: PYBITS = "32"
 
-##############################     
-# Import correct AGG binaries
-try:
-    if OSSYSTEM == "windows":
-        if PYBITS == "32":
-            if PYVERSION == "2.6":
-                try: from .precompiled.win.bit32.py26 import aggdraw
-                except:
-                    sys.path.insert(0, PYAGGFOLDER+"/precompiled/win/bit32/py26")
-                    import aggdraw
-                    sys.path = sys.path[1:] # remove previously added aggdraw path
-            elif PYVERSION == "2.7":
-                try: from .precompiled.win.bit32.py27 import aggdraw
-                except:
-                    sys.path.insert(0, PYAGGFOLDER+"/precompiled/win/bit32/py27")
-                    import aggdraw
-                    sys.path = sys.path[1:] # remove previously added aggdraw path
-        elif PYBITS == "64":
-            if PYVERSION == "2.6":
-                raise ImportError("Currently no Windows precompilation for 64-bit Py26")
-            elif PYVERSION == "2.7":
-                try: from .precompiled.win.bit64.py27 import aggdraw
-                except:
-                    sys.path.insert(0, PYAGGFOLDER+"/precompiled/win/bit64/py27")
-                    import aggdraw
-                    sys.path = sys.path[1:] # remove previously added aggdraw path
-    elif OSSYSTEM == "mac" or OSSYSTEM == "linux":
-        if PYBITS == "32":
-            raise ImportError("Currently no Unix precompilation for 32-bit Py26 or Py27")
-        elif PYBITS == "64":
-            if PYVERSION == "2.6":
-                raise ImportError("Currently no Unix precompilation for 64-bit Py26")
-            elif PYVERSION == "2.7":
-                try: from .precompiled.unix.bit64.py27 import aggdraw
-                except:
-                    sys.path.insert(0, PYAGGFOLDER+"/precompiled/unix/bit64/py27")
-                    import aggdraw
-                    sys.path = sys.path[1:] # remove previously added aggdraw path
-except ImportError:
-    import aggdraw # in case user has compiled a working aggdraw version on their own
+
+    
 
 
 
@@ -830,8 +793,11 @@ class Canvas:
         """
         Crop the canvas image to a bounding box defined in pixel coordinates,
         and the coordinate system will follow.
-        Essentially just an alias for zoom_bbox(), except lock_ratio
-        is set to False by default.
+        Similar to zoom_bbox(), except the size of the returned image will match the pixel
+        dimensions of the given bounding box. Meaning that cropping to a sub-region of the
+        current view extent will return a smaller image, while cropping to a larger region
+        will return an enlarged image that includes the cropped area at original size. 
+        Also, lock_ratio is set to False by default.
 
         Parameters:
 
@@ -853,7 +819,7 @@ class Canvas:
         if not (xleft < xright) == (oldxleft < oldxright):
             xleft,xright = xright,xleft
         if not (ytop < ybottom) == (oldytop < oldybottom):
-            ytop,ybottom = ybottom,ytop            
+            ytop,ybottom = ybottom,ytop 
 
         pxleft,pytop = self.coord2pixel(xleft,ytop)
         pxright,pybottom = self.coord2pixel(xright,ybottom)
@@ -2298,7 +2264,7 @@ class Canvas:
             # draw outline on top
             if options["outlinecolor"]:
                 outlinepen = aggdraw.Pen(options["outlinecolor"], options["outlinewidth"])
-                self.drawer.path((0,0), path, None, outlinepen)
+                self.drawer.path(path, (0,0), (None, outlinepen))
 
         else:
             # normal fast drawing
@@ -2309,7 +2275,7 @@ class Canvas:
             if options["outlinecolor"]:
                 outlinepen = aggdraw.Pen(options["outlinecolor"], options["outlinewidth"])
                 args.append(outlinepen)
-            self.drawer.path((0,0), path, *args)
+            self.drawer.path(path, (0,0), args)
 
     def draw_text(self, text, xy=None, bbox=None, rotate=None, **options):
         """
