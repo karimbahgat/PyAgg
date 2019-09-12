@@ -775,7 +775,7 @@ class Canvas:
         ###
         if image.mode == "RGBA":
             pasted = PIL.Image.new("RGBA", self.img.size)
-            pasted.paste(image, xy, image) # reframes the image so has the same size as the background image
+            pasted.paste(image, xy) # reframes the image so has the same size as the background image
             self.img = PIL.Image.alpha_composite(self.img, pasted) # possibly slower but correctly blends the transparencies of both imgs
             #self.img.paste(image, xy, image) # paste using self as transparency mask (PROBLEM: forces transparency of pasted image, so cuts through solid colors in the background image)
         else: self.img.paste(image, xy)
@@ -2179,7 +2179,7 @@ class Canvas:
                     path.lineto(nextx, nexty)
 
                 # draw the constructed path
-                self.drawer.path((0,0), path, *args)
+                self.drawer.path(path, *args)
 
         # reinstate the drawtransform
         self.drawer.settransform(self.coordspace_transform)
@@ -2238,7 +2238,7 @@ class Canvas:
             # use insides of the polygon as mask
             mask = Canvas(width=pw, height=ph, background="black", mode="RGB")
             mask.custom_space(*[xmin,ymin,xmax,ymax])
-            mask.drawer.path((0,0), path, aggdraw.Brush("white"))
+            mask.drawer.path(path, aggdraw.Brush("white"))
             mask.drawer.flush()
             mask = mask.img.convert("L")
 
@@ -2264,7 +2264,7 @@ class Canvas:
             # draw outline on top
             if options["outlinecolor"]:
                 outlinepen = aggdraw.Pen(options["outlinecolor"], options["outlinewidth"])
-                self.drawer.path(path, (0,0), (None, outlinepen))
+                self.drawer.path(path, None, outlinepen)
 
         else:
             # normal fast drawing
@@ -2275,7 +2275,7 @@ class Canvas:
             if options["outlinecolor"]:
                 outlinepen = aggdraw.Pen(options["outlinecolor"], options["outlinewidth"])
                 args.append(outlinepen)
-            self.drawer.path(path, (0,0), args)
+            self.drawer.path(path, *args)
 
     def draw_text(self, text, xy=None, bbox=None, rotate=None, **options):
         """
