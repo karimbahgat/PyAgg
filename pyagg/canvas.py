@@ -12,8 +12,11 @@ from __future__ import division
 import PIL, PIL.Image, PIL.ImageDraw, PIL.ImageFont
 import PIL.ImageOps, PIL.ImageChops, PIL.ImageMath, PIL.ImageEnhance
 import aggdraw
+
+# Tkinter related
 try:
     # try
+    import Tkinter as tk
     import PIL.ImageTk
 except:
     # Tkinter not available on this platform
@@ -21,7 +24,6 @@ except:
 
 # Import builtins
 import sys, os
-import Tkinter as tk
 import struct
 import itertools
 import random
