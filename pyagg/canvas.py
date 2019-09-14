@@ -9,9 +9,15 @@ Defines the PyAgg Canvas class, where most of the PyAgg functinoality is defined
 from __future__ import division
 
 # Import dependencies
-import PIL, PIL.Image, PIL.ImageTk, PIL.ImageDraw, PIL.ImageFont
+import PIL, PIL.Image, PIL.ImageDraw, PIL.ImageFont
 import PIL.ImageOps, PIL.ImageChops, PIL.ImageMath, PIL.ImageEnhance
 import aggdraw
+try:
+    # try
+    import PIL.ImageTk
+except:
+    # Tkinter not available on this platform
+    pass
 
 # Import builtins
 import sys, os
