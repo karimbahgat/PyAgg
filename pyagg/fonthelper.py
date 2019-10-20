@@ -15,7 +15,7 @@ import struct
 
 
 
-# Bytes stuff
+# System and font stuff
 OSSYSTEM = {"win32":"windows",
              "darwin":"mac",
              "linux":"linux",
@@ -23,6 +23,9 @@ OSSYSTEM = {"win32":"windows",
 SYSFONTFOLDERS = dict([("windows",["C:/Windows/Fonts/"]),
                        ("mac", ["/Library/Fonts/"]),
                        ("linux", ["/usr/share/fonts/truetype/"])])
+
+# Include builtin fonts
+LIBFONTFOLDER = os.path.join(os.path.split(__file__)[0], 'fonts')
 
 
 # Apparently ttf is stored in big endian
@@ -119,8 +122,9 @@ def get_fontname(filepath):
             # NameID = 1 font family name.
             #        = 2 font subfamily name, including weights such as bold or italics.
             #        = 4 "Full font name; a combination of strings 1 and 2, or a similar human-readable variant"
-            
-            if record["NameID"] == 1:
+
+            #print filepath,record["NameID"]
+            if record["NameID"] == 4:
 
                 # skip ahead
                 fileobj.seek(offset_table["Offset"] + namesheader["StorageOffset"] + record["StringOffset"])
@@ -131,7 +135,8 @@ def get_fontname(filepath):
                 # sometimes the font string has weird byte data in first position and between each character
                 if fontname.startswith("\x00"):
                     fontname = fontname[1::2]
-                
+
+                #print filepath,record["NameID"],fontname
                 return fontname
 
 def get_fontpath(font):
@@ -147,7 +152,7 @@ def get_fontpath(font):
         return font
     # or try to get from filename in font folder
     else:
-        for filepath in SYSFONTS.values():
+        for filepath in list(SYSFONTS.values()) + [LIBFONTFOLDER]:
             if filepath.endswith(font):
                 return filepath
     # raise error if hasnt succeeded yet
@@ -160,12 +165,13 @@ def load_sysfonts():
     the results can be accessed via the cached storage variable SYSFONTS. 
     """
     fontfilenames = dict([(filename.lower(), os.path.join(dirpath, filename))
-                          for fontfold in SYSFONTFOLDERS[OSSYSTEM]
+                          for fontfold in SYSFONTFOLDERS[OSSYSTEM] + [LIBFONTFOLDER]
                            for dirpath,dirnames,filenames in os.walk(fontfold)
                           for filename in filenames
                           if filename.lower().endswith(".ttf")])
     fontnames = dict()
     for filename,filepath in fontfilenames.items():
+        fontname = get_fontname(filepath)
         try:
             fontname = get_fontname(filepath)
             fontnames.update([(fontname.lower(), filepath)])

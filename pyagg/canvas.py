@@ -416,7 +416,7 @@ class Canvas:
         self.ppi = ppi
 
         # set canvas-wide parent options...
-        self.textoptions = {"font":"Segoe UI",
+        self.textoptions = {"font":"DejaVu Sans",
                             "textcolor":(0,0,0),
                             "textsize":"5%min", # 5% of minimum side
                             "anchor":"center", "justify":"left"}
@@ -2305,6 +2305,19 @@ class Canvas:
             Padx is used with the bbox argument or when using xy with fillcolor or outlinecolor and specifies the percent x padding between the text and the box.
             Pady is used with the bbox argument or when using xy with fillcolor or outlinecolor and specifies the percent y padding between the text and the box.
         """
+        # TODO:
+        # add parsing of latex formatted math (between $$ or \begin{equation}), via pylatexenc
+        # with replacing all alphanumeric characters with their math alphanumeric unicodes (https://www.fileformat.info/info/unicode/block/mathematical_alphanumeric_symbols/list.htm)
+        # + https://www.charbase.com has all unicode python representations
+        # and custom handling of sub/superscripts by writing extra text of half size towards top or bottom half
+        # + special handling of \sum \int etc by writing it as one char then placing sub/superscripts centered fully above or below
+        # + maybe special handling of fractions, by writing unicode horizline then half offsetting below or above
+        # maybe just do all this as contributions to pylatexenc...
+        # see maybe also:
+        # https://github.com/JelteF/PyLaTeX
+        # https://github.com/plastex/plastex
+        # http://milde.users.sourceforge.net/LUCR/Math/
+        
         if not text:
             return False
 
