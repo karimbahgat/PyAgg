@@ -317,7 +317,7 @@ class BaseGroup(_BaseGroup):
     # all others with titles or labels should inherit from this one
     # TODO: Label should be expressed as % of symbol maybe???
     # ...
-    def __init__(self, refcanvas=None, items=None, title="", titleoptions=None, direction="e", padding=0.05, anchor="center", **boxoptions):
+    def __init__(self, refcanvas=None, items=None, title="", titleoptions=None, direction="e", padding=0.01, anchor="center", **boxoptions):
         self.items = []
 
         titleoptions = titleoptions or dict()
@@ -552,7 +552,7 @@ class FillSizeSymbol(BaseGroup):
         symboloptions = dict(symboloptions)
         symboloptions["fillcolor"] = symboloptions.get("fillcolor", None)
         symboloptions["outlinecolor"] = symboloptions.get("outlinecolor", "black")
-        symboloptions["outlinewidth"] = symboloptions.get("outlinewidth", "0.6%min")
+        symboloptions["outlinewidth"] = symboloptions.get("outlinewidth", "0.5%min")
         obj = _Symbol(type=shape, refcanvas=refcanvas, **symboloptions)
         self.add_item(obj)
 
@@ -572,7 +572,7 @@ class FillColorSymbol(BaseGroup):
         symboloptions = dict(symboloptions)
         symboloptions["fillsize"] = symboloptions.get("fillsize", "2%min")
         symboloptions["outlinecolor"] = symboloptions.get("outlinecolor", "black")
-        symboloptions["outlinewidth"] = symboloptions.get("outlinewidth", "0.6%min")
+        symboloptions["outlinewidth"] = symboloptions.get("outlinewidth", "0.5%min")
         
         obj = _Symbol(type=shape, refcanvas=refcanvas, **symboloptions)
         self.add_item(obj)
