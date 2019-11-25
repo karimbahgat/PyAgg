@@ -174,7 +174,7 @@ class Label(_Symbol):
 
 
 class _BaseGroup:
-    def __init__(self, items=None, direction="e", padding=0.05, anchor="center", **boxoptions):
+    def __init__(self, items=None, direction="e", padding=0.05, anchor=None, **boxoptions):
 
         # TODO: make sure that direction and anchor dont contradict each other, since this leads to weird results
         # eg direction s and anchor n
@@ -213,6 +213,7 @@ class _BaseGroup:
             reqheight += padpx * 2 # also pad start and end
 
             # anchoring
+            anchor = anchor or 'n'
             x = padpx + rensymbols[0].width / 2.0
             if anchor == "n":
                 y = padpx
@@ -236,6 +237,7 @@ class _BaseGroup:
             reqwidth += padpx * 2 # also pad start and end
 
             # anchoring
+            anchor = anchor or 'w'
             y = padpx + rensymbols[0].height / 2.0
             if anchor == "e":
                 x = reqwidth - padpx
@@ -259,6 +261,7 @@ class _BaseGroup:
             reqheight += padpx * 2 # also pad start and end
 
             # anchoring
+            anchor = anchor or 'center'
             x = reqwidth / 2.0
             y = reqheight / 2.0
             
@@ -317,7 +320,7 @@ class BaseGroup(_BaseGroup):
     # all others with titles or labels should inherit from this one
     # TODO: Label should be expressed as % of symbol maybe???
     # ...
-    def __init__(self, refcanvas=None, items=None, title="", titleoptions=None, direction="e", padding=0.01, anchor="center", **boxoptions):
+    def __init__(self, refcanvas=None, items=None, title="", titleoptions=None, direction="e", padding=0.01, anchor=None, **boxoptions):
         self.items = []
 
         titleoptions = titleoptions or dict()
@@ -352,7 +355,7 @@ class BaseGroup(_BaseGroup):
     def add_item(self, item):
         self._basegroup.items.append(item)
 
-    def add_symbol(self, shape, label="", labeloptions=None, padding=0.05, **symboloptions):
+    def add_symbol(self, shape, label="", labeloptions=None, padding=0.01, **symboloptions):
         labeloptions = labeloptions or dict()
         if not "side" in labeloptions: labeloptions["side"] = "e"
         obj = Symbol(shape=shape,
@@ -525,7 +528,7 @@ class BaseGroup(_BaseGroup):
 class Symbol(BaseGroup):
     def __init__(self, shape, refcanvas=None,
                  label="", labeloptions=None,
-                 padding=0.05,
+                 padding=0.01,
                  **symboloptions):
         labeloptions = labeloptions or dict()
         if "padding" not in labeloptions: labeloptions["padding"] = padding
@@ -540,7 +543,7 @@ class Symbol(BaseGroup):
 class FillSizeSymbol(BaseGroup):
     def __init__(self, shape, refcanvas=None,
                  label="", labeloptions=None,
-                 padding=0.05,
+                 padding=0.01,
                  **symboloptions):
         labeloptions = labeloptions or dict()
         if "padding" not in labeloptions: labeloptions["padding"] = padding
@@ -560,7 +563,7 @@ class FillSizeSymbol(BaseGroup):
 class FillColorSymbol(BaseGroup):
     def __init__(self, shape, refcanvas=None,
                  label="", labeloptions=None,
-                 padding=0.05,
+                 padding=0.01,
                  **symboloptions):
         labeloptions = labeloptions or dict()
         if "padding" not in labeloptions: labeloptions["padding"] = padding
