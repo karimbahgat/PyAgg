@@ -202,6 +202,9 @@ class _BaseGroup:
         boxoptions = override.get("boxoptions") or self.boxoptions
 
         rensymbols = [s.render() for s in self.items]
+        rensymbols = [s for s in rensymbols if s]
+        if not rensymbols:
+            return None
         
         if direction in ("e","w"):
             reqwidth = sum((symbol.width for symbol in rensymbols))
