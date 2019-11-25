@@ -277,8 +277,9 @@ class _BaseGroup:
             raise Exception("Invalid direction value")
         
         # create the canvas
-        c = Canvas(reqwidth, reqheight, background=None)
-        c.draw_box(bbox=[0,0,reqwidth-1,reqheight-1], **boxoptions)
+        # TODO: Need to change, the outline is drawn on standalone canvas, so half of it spills outside
+        c = Canvas(reqwidth, reqheight)
+        c.draw_box(bbox=[0,0,reqwidth+0.5,reqheight-1], **boxoptions)
 
         # draw in direction
         #print "drawing group",reqwidth,reqheight
@@ -304,9 +305,10 @@ class _BaseGroup:
 
         return c
 
-    def _default_boxoptions(self, fillcolor=None, outlinecolor=None):
-        boxoptions = dict(fillcolor=fillcolor,
-                          outlinecolor=outlinecolor)
+    def _default_boxoptions(self, **kwargs):
+        boxoptions = dict(fillcolor=None,
+                          outlinecolor=None)
+        boxoptions.update(kwargs)
         return boxoptions
 
 
@@ -608,9 +610,11 @@ class SymbolGroup(BaseGroup):
 
 class Legend(BaseGroup):
 
-    def _default_boxoptions(self, fillcolor="white", outlinecolor="black"):
-        boxoptions = dict(fillcolor=fillcolor,
-                          outlinecolor=outlinecolor)
+    def _default_boxoptions(self, **kwargs):
+        boxoptions = dict(fillcolor='white',
+                          outlinecolor='black',
+                          outlinewidth='3%min')
+        boxoptions.update(kwargs)
         return boxoptions
 
         
