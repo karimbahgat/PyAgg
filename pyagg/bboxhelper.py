@@ -9,21 +9,34 @@ def conform_aspect(bbox, targetwidth, targetheight, fit=True):
     ys = y1,y2
     xwidth = newwidth = max(xs) - min(xs)
     yheight = newheight = max(ys) - min(ys)
-    targetaspect = targetwidth/float(targetheight)
+    
+##    targetaspect = targetwidth/float(targetheight)
+##    if fit:
+##        if newwidth < newheight:
+##            # tall bbox
+##            newwidth = newheight * targetaspect
+##        if newwidth > newheight:
+##            # wide bbox
+##            newheight = newwidth / float(targetaspect)
+##    else:
+##        if newwidth > newheight:
+##            # wide bbox
+##            newwidth = newheight * targetaspect
+##        if newwidth < newheight:
+##            # tall bbox
+##            newheight = newwidth / float(targetaspect)
+##
+##    return resize_dimensions(bbox, newwidth, newheight)
+
+    xratio = newwidth / float(targetwidth)
+    yratio = newheight / float(targetheight)
     if fit:
-        if newwidth < newheight:
-            # tall bbox
-            newwidth = newheight * targetaspect
-        if newwidth > newheight:
-            # wide bbox
-            newheight = newwidth / float(targetaspect)
+        ratio = max(xratio,yratio)
     else:
-        if newwidth > newheight:
-            # wide bbox
-            newwidth = newheight * targetaspect
-        if newwidth < newheight:
-            # tall bbox
-            newheight = newwidth / float(targetaspect)
+        ratio = min(xratio,yratio)
+
+    newwidth = targetwidth * ratio
+    newheight = targetheight * ratio
 
     return resize_dimensions(bbox, newwidth, newheight)
 
