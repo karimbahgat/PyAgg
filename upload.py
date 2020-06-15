@@ -8,7 +8,7 @@ pipy.define_upload(packpath,
                    author_email="karim.bahgat.norway@gmail.com",
                    license="MIT",
                    url="http://github.com/karimbahgat/PyAgg",
-                   requires=["PIL"],
+                   requires=["PIL", "aggdraw"],
                    keywords="graphics rendering drawing visualization imaging AGG aggdraw",
                    classifiers=["License :: OSI Approved",
                                 "Programming Language :: Python",
@@ -19,12 +19,11 @@ pipy.define_upload(packpath,
                                 "Topic :: Scientific/Engineering :: Visualization",
                                 "Topic :: Multimedia :: Graphics",
                                 "Topic :: Scientific/Engineering :: GIS"],
-                   changes=["Plenty of (undocumented) feature additions, including some unfinished ones",
-                            "Replaced heavy fontTools dependency with a more lightweight font locator",
-                            "Fixed some bugs improving platform support for Mac and Linux (though not fully tested)"],
+                   changes=["Plenty of new feature additions",
+                            "Drop precompiled aggdraw versions in favor of new maintained version of aggdraw",
+                            "Plenty of bug fixes"],
                    )
 
+pipy.generate_docs(packpath)
 #pipy.upload_test(packpath)
-#pipy.generate_docs(packpath)
-
 pipy.upload(packpath)

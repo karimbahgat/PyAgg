@@ -141,10 +141,10 @@ and modify according to the MIT license, see license.txt
 
 ## Credits:
 
-Karim Bahgat (2016)
+Karim Bahgat (2020)
 """
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 from .canvas import Canvas, load
 from .graph import LineGraph

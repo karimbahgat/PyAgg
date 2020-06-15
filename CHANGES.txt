@@ -1,6 +1,12 @@
 
 ## Changes
 
+### 0.3.0 (2020-06-15)
+
+- Plenty of new feature additions
+- Drop precompiled aggdraw versions in favor of new maintained version of aggdraw
+- Plenty of bug fixes
+
 ### 0.2.0 (2016-06-22)
 
 - Plenty of (undocumented) feature additions, including some unfinished ones
