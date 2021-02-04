@@ -93,7 +93,9 @@ class _Gradient(_Symbol):
                  length, thickness,
                  refcanvas=None,
                  direction="e",
-                 padding=0.05):
+                 padding=0.05,
+                 **kwargs
+                 ):
 
         self.refcanvas = refcanvas
 
@@ -103,31 +105,43 @@ class _Gradient(_Symbol):
         
         self.direction = direction
         self.padding = padding
+        self.kwargs = kwargs
 
     def render(self):
+        kwargs = dict(self.kwargs)
+        
         # fillsize is used directly
         if self.refcanvas: 
             info = dict(length=self.refcanvas.parse_relative_dist(self.length),
                         thickness=self.refcanvas.parse_relative_dist(self.thickness))
+            kwargs = dict(self.refcanvas._check_options(kwargs))
         else:
             tempcanv = Canvas(10,10)
             info = dict(length=tempcanv.parse_relative_dist(self.length),
                         thickness=tempcanv.parse_relative_dist(self.thickness))
+            kwargs = dict(tempcanv._check_options(kwargs))
+        print(kwargs)
+        print(info)
 
         # get size
         if self.direction in "ns":
             reqwidth, reqheight = info["thickness"],info["length"]
-            line = [(reqwidth/2.0,0),(reqwidth/2.0,reqheight)] # south
+            reqwidth += kwargs['outlinewidth']
+            reqheight += kwargs['outlinewidth']
+            line = [(reqwidth/2.0,kwargs['outlinewidth']),(reqwidth/2.0,reqheight-kwargs['outlinewidth'])] # south
             if self.direction == "n": line = [line[1],line[0]] # north
         else:
             reqwidth, reqheight = info["length"],info["thickness"]
-            line = [(0,reqheight/2.0),(reqwidth,reqheight/2.0)] # east
+            reqwidth += kwargs['outlinewidth']
+            reqheight += kwargs['outlinewidth']
+            line = [(kwargs['outlinewidth'],reqheight/2.0),(reqwidth-kwargs['outlinewidth'],reqheight/2.0)] # east
             if self.direction == "w": line = [line[1],line[0]] # west
                     
         # create canvas and draw
+        print(line)
         c = Canvas(width=reqwidth, height=reqheight)
         c.set_default_unit("px")
-        c.draw_gradient(line, self.gradient, info["thickness"]) 
+        c.draw_gradient(line, self.gradient, info["thickness"], outlinewidth=kwargs['outlinewidth'], outlinecolor=kwargs['outlinecolor']) 
 
         c.drawer.flush() # STRANGE BUG, DOESNT RENDER UNLESS CALLING FLUSH HERE...
         c.update_drawer_img()

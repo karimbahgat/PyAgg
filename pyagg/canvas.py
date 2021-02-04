@@ -1039,13 +1039,15 @@ class Canvas:
             
         return self
 
-    def draw_gradient(self, line, gradient, width, steps=100):
+    def draw_gradient(self, line, gradient, width, steps=100, **options):
+        options = self._check_options(options)
 
         #width,unit = units.split_unit(width)
-        width = self.parse_relative_dist(width)
+        pixwidth = self.parse_relative_dist(width)
         
-        halfwidth = width/2.0
+        halfwidth = pixwidth/2.0
         p1,p2 = line
+        p1,p2 = self.coord2pixel(*p1), self.coord2pixel(*p2)
         dirvec = p2[0]-p1[0], p2[1]-p1[1]
         magni = math.hypot(*dirvec)
         relmagni = halfwidth / float(magni)
@@ -1055,16 +1057,32 @@ class Canvas:
         xincr = dirvec[0]/float(steps)
         yincr = dirvec[1]/float(steps)
         incrlength = math.hypot(xincr,yincr)
-        incrlength = str(incrlength + 2) + "px" # NOTE: Adds 2 extra pixels to avoid tiny gaps bw lines
+        incrlength += 2 # NOTE: Adds extra pixels to avoid tiny gaps bw lines
+        #incrlength = str(incrlength + 2) + "px" # NOTE: Adds 2 extra pixels to avoid tiny gaps bw lines
 
+        # temporarily suspend transform in order to draw directly using pixel coords
+        self.drawer.settransform()
+
+        # draw slices stepwise along the line
         cur = p1[0]+xincr/2.0, p1[1]+yincr/2.0
         for step in range(steps):
             left = cur[0]-perpvec[0], cur[1]-perpvec[1]
             right = cur[0]+perpvec[0], cur[1]+perpvec[1]
             col = tuple(next(colors))
-            
-            self.draw_line([left,right], fillcolor=col, fillsize=incrlength, outlinecolor=None)
+
+            pen = aggdraw.Pen(col, incrlength)
+            pixline = [left[0],left[1],right[0],right[1]]
+            self.drawer.line(pixline, pen)
+            #self.draw_line([left,right], fillcolor=col, fillsize=incrlength, outlinecolor=None)
             cur = cur[0]+xincr, cur[1]+yincr
+
+        # reactivate transform
+        self.drawer.settransform(self.coordspace_transform)
+
+        # draw the line outline
+        if options.get('outlinecolor') and options.get('outlinewidth'):
+            self.draw_line(line, fillcolor=None, fillsize=width, outlinecolor=options.get('outlinecolor'), outlinewidth=options.get('outlinewidth'))
+
             
         
 
@@ -1950,12 +1968,13 @@ class Canvas:
                 # first fill
                 midleft = midpoint(left)
                 midright = midpoint(right)
-                linepolygon = [left[0], midleft, midright, right[0]]
-                pathstring = " M%s,%s" %linepolygon[0]
-                for p in linepolygon[1:]:
-                    pathstring += " L%s,%s"%p
-                symbol = aggdraw.Symbol(pathstring)
-                self.drawer.symbol((0,0), symbol, None, brush)
+                if options["fillcolor"]:
+                    linepolygon = [left[0], midleft, midright, right[0]]
+                    pathstring = " M%s,%s" %linepolygon[0]
+                    for p in linepolygon[1:]:
+                        pathstring += " L%s,%s"%p
+                    symbol = aggdraw.Symbol(pathstring)
+                    self.drawer.symbol((0,0), symbol, None, brush)
 
                 # then outline
                 # left
@@ -1979,10 +1998,11 @@ class Canvas:
                     midright2 = midpoint(right2)
 
                     # first fill
-                    pathstring = " M%s,%s" %midleft1 + " Q%s,%s"%left2[0] + ",%s,%s"%midleft2
-                    pathstring += " L%s,%s" %midright2 + " Q%s,%s"%right2[0] + ",%s,%s"%midright1
-                    symbol = aggdraw.Symbol(pathstring)
-                    self.drawer.symbol((0,0), symbol, None, brush)
+                    if options["fillcolor"]:
+                        pathstring = " M%s,%s" %midleft1 + " Q%s,%s"%left2[0] + ",%s,%s"%midleft2
+                        pathstring += " L%s,%s" %midright2 + " Q%s,%s"%right2[0] + ",%s,%s"%midright1
+                        symbol = aggdraw.Symbol(pathstring)
+                        self.drawer.symbol((0,0), symbol, None, brush)
 
                     # then outline
                     # left
@@ -2001,12 +2021,13 @@ class Canvas:
                                         
                 # draw straight line to endpoint of last line
                 # first fill
-                linepolygon = [midleft2, left2[1], right2[1], midright2]
-                pathstring = " M%s,%s" %linepolygon[0]
-                for p in linepolygon[1:]:
-                    pathstring += " L%s,%s"%p
-                symbol = aggdraw.Symbol(pathstring)
-                self.drawer.symbol((0,0), symbol, None, brush)
+                if options["fillcolor"]:
+                    linepolygon = [midleft2, left2[1], right2[1], midright2]
+                    pathstring = " M%s,%s" %linepolygon[0]
+                    for p in linepolygon[1:]:
+                        pathstring += " L%s,%s"%p
+                    symbol = aggdraw.Symbol(pathstring)
+                    self.drawer.symbol((0,0), symbol, None, brush)
 
                 # then outline
                 # left
@@ -2033,12 +2054,13 @@ class Canvas:
         
                 for left,right in bufferedlinesegments():
                     # first fill
-                    linepolygon = list(left) + list(reversed(right))
-                    pathstring = " M%s,%s" %linepolygon[0]
-                    for p in linepolygon[1:]:
-                        pathstring += " L%s,%s"%p
-                    symbol = aggdraw.Symbol(pathstring)
-                    self.drawer.symbol((0,0), symbol, None, brush)
+                    if options["fillcolor"]:
+                        linepolygon = list(left) + list(reversed(right))
+                        pathstring = " M%s,%s" %linepolygon[0]
+                        for p in linepolygon[1:]:
+                            pathstring += " L%s,%s"%p
+                        symbol = aggdraw.Symbol(pathstring)
+                        self.drawer.symbol((0,0), symbol, None, brush)
 
                     # then outline
                     # left
@@ -2063,11 +2085,12 @@ class Canvas:
                 startpolygon = start(firstline, firstleft[0], firstright[0]) # takes last two poins ie last line and left and right endpoints as input arg
 
                 # first fill
-                pathstring = " M%s,%s" %startpolygon[0]
-                for p in startpolygon[1:]:
-                    pathstring += " L%s,%s"%p
-                symbol = aggdraw.Symbol(pathstring)
-                self.drawer.symbol((0,0), symbol, None, brush)
+                if options["fillcolor"]:
+                    pathstring = " M%s,%s" %startpolygon[0]
+                    for p in startpolygon[1:]:
+                        pathstring += " L%s,%s"%p
+                    symbol = aggdraw.Symbol(pathstring)
+                    self.drawer.symbol((0,0), symbol, None, brush)
 
                 # then outline
                 # left
@@ -2099,11 +2122,12 @@ class Canvas:
                 endpolygon = end(lastline, lastleft[1], lastright[1]) # takes last two poins ie last line and left and right endpoints as input arg
 
                 # first fill
-                pathstring = " M%s,%s" %endpolygon[0]
-                for p in endpolygon[1:]:
-                    pathstring += " L%s,%s"%p
-                symbol = aggdraw.Symbol(pathstring)
-                self.drawer.symbol((0,0), symbol, None, brush)
+                if options["fillcolor"]:
+                    pathstring = " M%s,%s" %endpolygon[0]
+                    for p in endpolygon[1:]:
+                        pathstring += " L%s,%s"%p
+                    symbol = aggdraw.Symbol(pathstring)
+                    self.drawer.symbol((0,0), symbol, None, brush)
 
                 # then outline
                 # left
