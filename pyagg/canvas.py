@@ -837,7 +837,29 @@ class Canvas:
         
         self.custom_space(xleft,ytop,xright,ybottom, lock_ratio=False)
 
-        return self        
+        return self
+
+##    def expand(self, left=0, top=0, right=0, bottom=0):
+##        left = units.parse_dist(left,
+##                                 ppi=self.ppi,
+##                                 default_unit="px",
+##                                 canvassize=[self.width,self.height],
+##                                 coordsize=[self.coordspace_width,self.coordspace_height])
+##        top = units.parse_dist(top,
+##                                 ppi=self.ppi,
+##                                 default_unit="px",
+##                                 canvassize=[self.width,self.height],
+##                                 coordsize=[self.coordspace_width,self.coordspace_height])
+##        right = units.parse_dist(right,
+##                                 ppi=self.ppi,
+##                                 default_unit="px",
+##                                 canvassize=[self.width,self.height],
+##                                 coordsize=[self.coordspace_width,self.coordspace_height])
+##        bottom = units.parse_dist(bottom,
+##                                 ppi=self.ppi,
+##                                 default_unit="px",
+##                                 canvassize=[self.width,self.height],
+##                                 coordsize=[self.coordspace_width,self.coordspace_height])
 
     def update_drawer_img(self):
         """
@@ -1247,6 +1269,7 @@ class Canvas:
     def draw_axis(self, axis, minval, maxval, intercept,
                   tickpos=None,
                   tickinterval=None, ticknum=5,
+                  tickside=None,
                   ticktype="tick", tickoptions={},
                   ticklabelformat=None, ticklabeloptions={},
                   noticks=False, noticklabels=False,
@@ -1265,6 +1288,8 @@ class Canvas:
         - *tickpos* (optional): A list of positions where tick marks should be drawn.
         - *tickinterval* (optional): The coordinate interval between tick marks.
         - *ticknum* (optional): The number of ticks to draw between the minimum and maximum values.
+        - *tickside* (optional): Which side of the axis the ticks and labels should appear. Either 'top'
+            or 'bottom' (default) for the x axis, or 'left' (default) or 'right' for the y axis. 
         - *ticktype* (optional): What type of tick to draw, either 'tick' for a small line, or any of the
             canvas primitive drawing types, eg 'circle', etc. Alternatively a function that takes an xy arg
             and kwargs to be called for every tick. 
@@ -1291,10 +1316,10 @@ class Canvas:
             ticktype = "box"
 
         if axis == "x":
-            tickoptions["fillwidth"] = tickoptions.get("fillwidth","0.5px")
-            tickoptions["fillheight"] = tickoptions.get("fillheight","4px")
+            tickoptions["fillwidth"] = tickoptions.get("fillwidth","0.5%min")
+            tickoptions["fillheight"] = tickoptions.get("fillheight","4%min")
         else:
-            w,h = tickoptions.get("fillwidth","0.5px"),tickoptions.get("fillheight","4px")
+            w,h = tickoptions.get("fillwidth","0.5%min"),tickoptions.get("fillheight","4%min")
             # switch them since width intuitively means thickness of the tick
             tickoptions["fillwidth"] = h
             tickoptions["fillheight"] = w
@@ -1317,10 +1342,7 @@ class Canvas:
         if not tickfunc:
             tickfunc = self.draw_box
         if not ticklabelformat:
-            if axis == "x":
-                valrange = xmax - xmin
-            elif axis == "y":
-                valrange = ymax - ymin
+            valrange = maxval - minval
             if valrange < 1:
                 ticklabelformat = ".6f"
             elif valrange < 10:
@@ -1332,14 +1354,20 @@ class Canvas:
             ticklabelformat = lambda s: format(s, _frmt)
         if not tickinterval:
             if ticknum:
-                if axis == "x": valuerange = xmax-xmin
-                elif axis == "y": valuerange = ymax-ymin
-                tickinterval = valuerange / float(ticknum)
+                valuerange = maxval - minval
+                tickinterval = valuerange / float(ticknum - 1)
             else:
                 raise Exception("either tickinterval or ticknum must be specified")
             
         if axis == "x":
-            _ticklabeloptions = {"anchor":"n"}
+            tickside = tickside or 'bottom'
+            if tickside == 'top':
+                _ticklabeloptions = {"anchor":"s", "yoffset":"-4%min"}
+            elif tickside == 'bottom':
+                _ticklabeloptions = {"anchor":"n", "yoffset":"4%min"}
+            else:
+                raise Exception("tickside arg must be 'top' or 'bottom' for the x-axis, not %s" % tickside)
+                
             _ticklabeloptions.update(ticklabeloptions)
             self.draw_line([(minval,intercept),(maxval,intercept)], **kwargs)
             if tickpos:
@@ -1355,7 +1383,13 @@ class Canvas:
                     lbl = ticklabelformat(x)
                     self.draw_text(lbl, (x,intercept), **_ticklabeloptions)
         elif axis == "y":
-            _ticklabeloptions = {"anchor":"e"}
+            tickside = tickside or 'left'
+            if tickside == 'right':
+                _ticklabeloptions = {"anchor":"w", "xoffset":"4%min"}
+            elif tickside == 'left':
+                _ticklabeloptions = {"anchor":"e", "xoffset":"-4%min"}
+            else:
+                raise Exception("tickside arg must be 'left' or 'right' for the y-axis, not %s" % tickside)
             _ticklabeloptions.update(ticklabeloptions)
             self.draw_line([(intercept,minval),(intercept,maxval)], **kwargs)
             if tickpos:
@@ -2349,6 +2383,10 @@ class Canvas:
             text = str(text)
         
         options = self._check_text_options(options)
+        if not options.get('textsize_is_internal'):
+            # textsize is human input
+            if self.ppi != 97:
+                options['textsize'] *= self.ppi / 97.0 # human textsize pixel resolution assumes 97 ppi, so must be adjusted for desired ppi
 
         def draw_textlines(img, textlines, pos, size, **options):
             PIL_drawer = PIL.ImageDraw.Draw(img)
@@ -2956,42 +2994,39 @@ class Canvas:
 
         def parse_textsize(size, font):
             # determine target pixel size
-            if isinstance(size, str):
-                if size.endswith("%"):
-                    defsize = parse_textsize(self.textoptions["textsize"], font=font)
-                    size = defsize * float(size[:-1]) / 100.0
-                    return size
-                else:
-                    if size.endswith("%min"):
-                        if self.width <= self.height:
-                            size = size.replace("%min","%w")
-                        elif self.height < self.width:
-                            size = size.replace("%min","%h")
-                    elif size.endswith("%max"):
-                        if self.width >= self.height:
-                            size = size.replace("%max","%w")
-                        elif self.height > self.width:
-                            size = size.replace("%max","%h")
-                            
-                    if size.endswith("%w"):
-                        percnum = float(size[:-2])
-                        percpix = self.width / 100.0 * percnum
-                        return calc_fontsize(width=percpix, font=font)
-                    elif size.endswith("%h"):
-                        percnum = float(size[:-2])
-                        percpix = self.height / 100.0 * percnum
-                        return calc_fontsize(height=percpix, font=font)
-
-            else:
-                if self.ppi != 97:
-                    size *= self.ppi / 97.0 # textsize pixel resolution assumes 97 ppi, so must be adjusted for desired ppi
+            if size.endswith("%"):
+                defsize = parse_textsize(self.textoptions["textsize"], font=font)
+                size = defsize * float(size[:-1]) / 100.0
                 return size
+            else:
+                if size.endswith("%min"):
+                    if self.width <= self.height:
+                        size = size.replace("%min","%w")
+                    elif self.height < self.width:
+                        size = size.replace("%min","%h")
+                elif size.endswith("%max"):
+                    if self.width >= self.height:
+                        size = size.replace("%max","%w")
+                    elif self.height > self.width:
+                        size = size.replace("%max","%h")
+                        
+                if size.endswith("%w"):
+                    percnum = float(size[:-2])
+                    percpix = self.width / 100.0 * percnum
+                    return calc_fontsize(width=percpix, font=font)
+                elif size.endswith("%h"):
+                    percnum = float(size[:-2])
+                    percpix = self.height / 100.0 * percnum
+                    return calc_fontsize(height=percpix, font=font)
 
         finaloptions = self.textoptions.copy()
         finaloptions.update(customoptions)
 
-        textsize = parse_textsize(finaloptions["textsize"], font=finaloptions["font"])
-        finaloptions["textsize"] = int(round(textsize))
+        if isinstance(finaloptions["textsize"], str):
+            finaloptions["textsize"] = parse_textsize(finaloptions["textsize"], font=finaloptions["font"])
+            finaloptions["textsize_is_internal"] = True
+            
+        finaloptions["textsize"] = int(round(finaloptions["textsize"]))
         
         return finaloptions
 

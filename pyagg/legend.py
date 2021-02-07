@@ -94,7 +94,6 @@ class _Gradient(_Symbol):
                  refcanvas=None,
                  direction="e",
                  padding=0.05,
-                 **kwargs
                  ):
 
         self.refcanvas = refcanvas
@@ -105,43 +104,31 @@ class _Gradient(_Symbol):
         
         self.direction = direction
         self.padding = padding
-        self.kwargs = kwargs
 
     def render(self):
-        kwargs = dict(self.kwargs)
-        
         # fillsize is used directly
         if self.refcanvas: 
             info = dict(length=self.refcanvas.parse_relative_dist(self.length),
                         thickness=self.refcanvas.parse_relative_dist(self.thickness))
-            kwargs = dict(self.refcanvas._check_options(kwargs))
         else:
             tempcanv = Canvas(10,10)
             info = dict(length=tempcanv.parse_relative_dist(self.length),
                         thickness=tempcanv.parse_relative_dist(self.thickness))
-            kwargs = dict(tempcanv._check_options(kwargs))
-        print(kwargs)
-        print(info)
 
         # get size
         if self.direction in "ns":
             reqwidth, reqheight = info["thickness"],info["length"]
-            reqwidth += kwargs['outlinewidth']
-            reqheight += kwargs['outlinewidth']
-            line = [(reqwidth/2.0,kwargs['outlinewidth']),(reqwidth/2.0,reqheight-kwargs['outlinewidth'])] # south
+            line = [(reqwidth/2.0,0),(reqwidth/2.0,reqheight)] # south
             if self.direction == "n": line = [line[1],line[0]] # north
         else:
             reqwidth, reqheight = info["length"],info["thickness"]
-            reqwidth += kwargs['outlinewidth']
-            reqheight += kwargs['outlinewidth']
-            line = [(kwargs['outlinewidth'],reqheight/2.0),(reqwidth-kwargs['outlinewidth'],reqheight/2.0)] # east
+            line = [(0,reqheight/2.0),(reqwidth,reqheight/2.0)] # east
             if self.direction == "w": line = [line[1],line[0]] # west
                     
         # create canvas and draw
-        print(line)
         c = Canvas(width=reqwidth, height=reqheight)
         c.set_default_unit("px")
-        c.draw_gradient(line, self.gradient, info["thickness"], outlinewidth=kwargs['outlinewidth'], outlinecolor=kwargs['outlinecolor']) 
+        c.draw_gradient(line, self.gradient, info["thickness"]) 
 
         c.drawer.flush() # STRANGE BUG, DOESNT RENDER UNLESS CALLING FLUSH HERE...
         c.update_drawer_img()
@@ -179,7 +166,7 @@ class Label(_Symbol):
         x = reqwidth / 2.0
         y = reqheight / 2.0
         info['anchor'] = 'center'
-        info['textsize'] /= c.ppi / 97.0 # canvas will blow up size based on ppi, so input the inverse to end up at same size
+        #info['textsize'] /= c.ppi / 97.0 # canvas will blow up size based on ppi, so input the inverse to end up at same size
         c.draw_text(text, xy=(x,y), **info)
         #c.view()
 
@@ -411,24 +398,33 @@ class BaseGroup(_BaseGroup):
                 frmtstring = valueformat
                 if not frmtstring.startswith(","): frmtstring = ","+frmtstring # adds thousand separator
                 valueformat = lambda val: format(val, frmtstring)
-            breaks = [valueformat(brk) for brk in breaks]
 
         if valuetype == "proportional":
             # TODO: maybe also proportional sizes....
-            if not "side" in labeloptions: labeloptions["side"] = "e"
+            if not "side" in labeloptions: labeloptions["side"] = "e" # not sure what does...?
             _symboloptions = dict(symboloptions)
             # TODO: symgroup south dir makes correct, but same dir goes kookoo...
             # ...
             group = SymbolGroup(refcanvas=self.refcanvas, direction="s", anchor=anchor, title=title, titleoptions=titleoptions, padding=0)
-            obj = GradientSymbol(classvalues, breaks, length=_symboloptions["length"], thickness=_symboloptions["thickness"],
+            minval = min(breaks)
+            maxval = max(breaks)
+            if 'length' not in _symboloptions: raise Exception("Proportional fillcolors requires a gradient 'length' arg")
+            length = _symboloptions.pop("length")
+            if 'thickness' not in _symboloptions: raise Exception("Proportional fillcolors requires a gradient 'thickness' arg")
+            thickness = _symboloptions.pop("thickness")
+            obj = GradientSymbol(classvalues, length=length, thickness=thickness,
+                                 minval=minval, maxval=maxval,
                                  padding=padding,
                                  refcanvas=self.refcanvas,
-                                 direction=direction, anchor=anchor, labeloptions=labeloptions)
+                                 direction=direction, anchor=anchor, labeloptions=labeloptions,
+                                 ticklabelformat=valueformat,
+                                 **_symboloptions)
             group.add_item(obj)
             self.add_item(group)
             
         elif valuetype == "continuous":
-            if not "side" in labeloptions: labeloptions["side"] = "e"
+            if not "side" in labeloptions: labeloptions["side"] = "e" # not sure what does...?
+            breaks = [valueformat(brk) for brk in breaks]
             prevbrk = breaks[0]
             group = SymbolGroup(refcanvas=self.refcanvas, direction=direction, anchor=anchor, title=title, titleoptions=titleoptions, padding=0)
             for i,nextbrk in enumerate(breaks[1:]):
@@ -444,7 +440,8 @@ class BaseGroup(_BaseGroup):
             self.add_item(group)
             
         elif valuetype == "discrete":
-            if not "side" in labeloptions: labeloptions["side"] = "e"
+            if not "side" in labeloptions: labeloptions["side"] = "e" # not sure what does...?
+            breaks = [valueformat(brk) for brk in breaks]
             prevbrk = breaks[0]
             group = SymbolGroup(refcanvas=self.refcanvas, direction=direction, anchor=anchor, title=title, titleoptions=titleoptions, padding=0)
             for i,nextbrk in enumerate(breaks[1:]):
@@ -460,7 +457,8 @@ class BaseGroup(_BaseGroup):
             self.add_item(group)
 
         elif valuetype == "categorical":
-            if not "side" in labeloptions: labeloptions["side"] = "e"
+            if not "side" in labeloptions: labeloptions["side"] = "e" # not sure what does...?
+            breaks = [valueformat(brk) for brk in breaks]
             group = SymbolGroup(refcanvas=self.refcanvas, direction=direction, anchor=anchor, title=title, titleoptions=titleoptions, padding=0)
             for category,classval in zip(breaks,classvalues):
                 _symboloptions = dict(symboloptions)
@@ -600,27 +598,125 @@ class FillColorSymbol(BaseGroup):
 
 
 class GradientSymbol(BaseGroup):
-    def __init__(self, gradient, ticks,
+    def __init__(self, gradient, #ticks,
                  length, thickness,
+                 minval, maxval,
                  refcanvas=None,
-                 direction="e", anchor="center",
+                 direction="e", tickside=None, anchor="center", # not sure what anchor does....
                  title="",
                  titleoptions=None,
-                 label="",
-                 labeloptions=None, padding=0.05):
+                 labeloptions=None,
+                 padding=0.05,
+                 **kwargs):
 
         titleoptions = titleoptions or dict()
-        labeloptions = labeloptions or dict()
+
+        defaults = {}#'textsize':'3%max'}
+        defaults.update(labeloptions or {})
+        labeloptions = defaults
+
+        tickoptions = kwargs.get('tickoptions', {})
+        
+        defaults = {'outlinewidth':"0.5%min"}
+        defaults.update(kwargs)
+        kwargs = defaults
+
+        axisoptions = {'fillsize':kwargs['outlinewidth']} # not used?
+        
         #if "padding" not in labeloptions: labeloptions["padding"] = padding
         BaseGroup.__init__(self, refcanvas=refcanvas, title=title, titleoptions=titleoptions, padding=padding, direction=direction)
 
+        # gradient
         grad = _Gradient(gradient, length, thickness, refcanvas=refcanvas,
                          direction=direction, padding=0)
 
-        self.add_item(Label(ticks[0], refcanvas=refcanvas, **labeloptions))
-        self.add_item(grad)
-        self.add_item(Label(ticks[-1], refcanvas=refcanvas, **labeloptions))
+        origrender = grad.render
 
+        def wraprender(**overrides):
+            c = origrender()
+
+            # parse correct sizes based on refcanvas
+            _kwargs = refcanvas._check_options(kwargs) if refcanvas else c._check_options(kwargs)
+            _kwargs['tickoptions'] = refcanvas._check_options(tickoptions) if refcanvas else c._check_options(tickoptions)            
+            _kwargs['tickoptions']['fillcolor'] = _kwargs['tickoptions']['outlinecolor']
+            _kwargs['tickoptions']['outlinecolor'] = None
+            if direction in 'ew':
+                # overrides any manually specified tickoptions fillwidth/height
+                _kwargs['tickoptions']['fillwidth'] = _kwargs['outlinewidth']
+                _kwargs['tickoptions']['fillheight'] = _kwargs['outlinewidth'] * 4
+            elif direction in 'ns':
+                # overrides any manually specified tickoptions fillwidth/height
+                _kwargs['tickoptions']['fillheight'] = _kwargs['outlinewidth']
+                _kwargs['tickoptions']['fillwidth'] = _kwargs['outlinewidth'] * 4
+            _axisoptions = {'fillsize':_kwargs['outlinewidth'], 'fillcolor':_kwargs['outlinecolor']}
+            _labeloptions = refcanvas._check_text_options(labeloptions) if refcanvas else c._check_text_options(labeloptions)
+
+            # set coordspace
+            if direction == 'e':
+                c.custom_space(xleft=minval, ytop=1, xright=maxval, ybottom=0, lock_ratio=True)
+            elif direction == 'w':
+                c.custom_space(xleft=maxval, ytop=1, xright=minval, ybottom=0, lock_ratio=True)
+            elif direction == 'n':
+                c.custom_space(xleft=0, ytop=maxval, xright=1, ybottom=minval, lock_ratio=True)
+            elif direction == 's':
+                c.custom_space(xleft=0, ytop=minval, xright=1, ybottom=maxval, lock_ratio=True)
+            
+            # expand to allow for unknown sized tick labels
+            factor = 2
+            xw,yh = c.coordspace_width,c.coordspace_height
+            pad = min(xw,yh) * factor # pad by some fraction of the shortest side
+            x1,y1,x2,y2 = c.coordspace_bbox
+            xmin,ymin,xmax,ymax = min(x1,x2),min(y1,y2),max(x1,x2),max(y1,y2)
+            c.crop(xmin-pad, ymin-pad, xmax+pad, ymax+pad)
+
+            # get gradient line
+            if direction in "ns":
+                line = [((x1+x2)/2.0,y1),((x1+x2)/2.0,y2)] # south
+                if direction == "n": line = [line[1],line[0]] # north
+                linethick = xw
+            else:
+                line = [(x1,(y1+y2)/2.0),(x2,(y1+y2)/2.0)] # east
+                if direction == "w": line = [line[1],line[0]] # west
+                linethick = yh
+
+            # draw gradient outline
+            c.set_default_unit("px")
+            c.draw_line(line, fillcolor=None, fillsize=str(linethick)+'x', outlinecolor=_kwargs['outlinecolor'], outlinewidth=_kwargs['outlinewidth'])
+
+            # include tickmarks...
+            alltickoptions = dict([(k,v) for k,v in _kwargs.items() if 'tick' in k])
+            alltickoptions['ticklabeloptions'] = _labeloptions
+            if direction in "ns":
+                _tickside = tickside or 'right'
+                if _tickside == 'left':
+                    intercept = x1
+                elif _tickside == 'right':
+                    intercept = x2
+                else:
+                    raise Exception("tickside arg must be 'left' or 'right' for the y-axis, not %s" % _tickside)
+                c.draw_axis('y', minval=minval, maxval=maxval, intercept=intercept, tickside=_tickside, fillsize=_axisoptions['fillsize'], fillcolor=_axisoptions['fillcolor'], **alltickoptions)
+            else:
+                _tickside = tickside or 'bottom'
+                if _tickside == 'top':
+                    intercept = y1
+                elif _tickside == 'bottom':
+                    intercept = y2
+                else:
+                    raise Exception("tickside arg must be 'top' or 'bottom' for the x-axis, not %s" % tickside)
+                c.draw_axis('x', minval=minval, maxval=maxval, intercept=intercept, tickside=_tickside, fillsize=_axisoptions['fillsize'], fillcolor=_axisoptions['fillcolor'], **alltickoptions)
+
+            # finally reduce to valid pixel region
+            c.drawer.flush()
+            c.img = c.img.crop(c.img.getbbox())
+            c.update_drawer_img()
+
+            return c
+            
+        grad.render = wraprender
+
+        #self.add_item(Label(ticks[0], refcanvas=refcanvas, **labeloptions))
+        self.add_item(grad)
+        #self.add_item(Label(ticks[-1], refcanvas=refcanvas, **labeloptions))
 
 
 
