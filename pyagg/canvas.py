@@ -1798,8 +1798,8 @@ class Canvas:
         Parameters:
 
         - *xy*: Xy center coordinate to place the pie origin. 
-        - *startangle*: Degree angle to start the pie.
-        - *endangle*: Degree angle to end the pie.
+        - *startangle*: Degree angle to start the pie, starting at the top going clockwise. 
+        - *endangle*: Degree angle to end the pie, starting at the top going clockwise.
         - *options* (optional): Keyword args dictionary of draw styling options. 
         """
         #TEMPORARY DISABLING TRANSFORM TO AVOID DEFORMED PIE
@@ -1815,8 +1815,18 @@ class Canvas:
         if options["fillcolor"]:
             brush = aggdraw.Brush(options["fillcolor"])
             args.append(brush)
+
+        # aggdraw expects circle degrees that start to the right and goes counter-clockwise.
+        # but we want a more intuitive approach that starts at north going clockwise.
+        # first flip/inverse the degree
+        startangle = 360 - startangle
+        endangle = 360 - endangle
+        # then rotate 90 deg left
+        startangle += 90
+        endangle += 90
+            
         self.drawer.settransform()
-        self.drawer.pieslice(bbox, startangle, endangle, *args)
+        self.drawer.pieslice(bbox, endangle, startangle, *args) # note that we switch start and endangle
         self.drawer.settransform(self.coordspace_transform)
 
     def draw_box(self, xy=None, bbox=None, flatratio=1.0, **options):
