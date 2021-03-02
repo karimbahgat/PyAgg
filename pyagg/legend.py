@@ -405,6 +405,7 @@ class BaseGroup(_BaseGroup):
             _symboloptions = dict(symboloptions)
             # TODO: symgroup south dir makes correct, but same dir goes kookoo...
             # ...
+            # NOTE: valueformat is passed on to and handled by GradientSymbol
             group = SymbolGroup(refcanvas=self.refcanvas, direction="s", anchor=anchor, title=title, titleoptions=titleoptions, padding=0)
             minval = min(breaks)
             maxval = max(breaks)
@@ -424,7 +425,8 @@ class BaseGroup(_BaseGroup):
             
         elif valuetype == "continuous":
             if not "side" in labeloptions: labeloptions["side"] = "e" # not sure what does...?
-            breaks = [valueformat(brk) for brk in breaks]
+            breaks = [valueformat(brk) if valueformat else brk
+                      for brk in breaks]
             prevbrk = breaks[0]
             group = SymbolGroup(refcanvas=self.refcanvas, direction=direction, anchor=anchor, title=title, titleoptions=titleoptions, padding=0)
             for i,nextbrk in enumerate(breaks[1:]):
@@ -441,7 +443,8 @@ class BaseGroup(_BaseGroup):
             
         elif valuetype == "discrete":
             if not "side" in labeloptions: labeloptions["side"] = "e" # not sure what does...?
-            breaks = [valueformat(brk) for brk in breaks]
+            breaks = [valueformat(brk) if valueformat else brk
+                      for brk in breaks]
             prevbrk = breaks[0]
             group = SymbolGroup(refcanvas=self.refcanvas, direction=direction, anchor=anchor, title=title, titleoptions=titleoptions, padding=0)
             for i,nextbrk in enumerate(breaks[1:]):
@@ -458,7 +461,8 @@ class BaseGroup(_BaseGroup):
 
         elif valuetype == "categorical":
             if not "side" in labeloptions: labeloptions["side"] = "e" # not sure what does...?
-            breaks = [valueformat(brk) for brk in breaks]
+            breaks = [valueformat(brk) if valueformat else brk
+                      for brk in breaks]
             group = SymbolGroup(refcanvas=self.refcanvas, direction=direction, anchor=anchor, title=title, titleoptions=titleoptions, padding=0)
             for category,classval in zip(breaks,classvalues):
                 _symboloptions = dict(symboloptions)
