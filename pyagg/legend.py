@@ -489,13 +489,14 @@ class BaseGroup(_BaseGroup):
                 frmtstring = valueformat
                 if not frmtstring.startswith(","): frmtstring = ","+frmtstring # adds thousand separator
                 valueformat = lambda val: format(val, frmtstring)
-            breaks = [valueformat(brk) for brk in breaks]
 
         if valuetype == "proportional":
             # TODO: Experimental, not fully tested...
             if not "side" in labeloptions: labeloptions["side"] = "n" 
             group = SymbolGroup(refcanvas=self.refcanvas, direction="center", anchor="s", title=title, titleoptions=titleoptions, padding=0) # for continuous, sizes stay in one place
             breaks = [breaks[0], breaks[-1]]
+            breaks = [valueformat(brk) if valueformat else brk
+                      for brk in breaks]
             classvalues = [classvalues[0], classvalues[-1]]
             for brk,classval in sorted(zip(breaks, classvalues), key=lambda(b,cv): cv, reverse=True):
                 _symboloptions = dict(symboloptions)
@@ -510,6 +511,8 @@ class BaseGroup(_BaseGroup):
 
         elif valuetype == "continuous":
             if not "side" in labeloptions: labeloptions["side"] = "e"
+            breaks = [valueformat(brk) if valueformat else brk
+                      for brk in breaks]
             prevbrk = breaks[0]
             group = SymbolGroup(refcanvas=self.refcanvas, direction="center", anchor=anchor, title=title, titleoptions=titleoptions, padding=0) # for continuous, sizes stay in one place
             for i,nextbrk in enumerate(breaks[1:]):
@@ -526,6 +529,8 @@ class BaseGroup(_BaseGroup):
             
         elif valuetype == "discrete":
             if not "side" in labeloptions: labeloptions["side"] = "e"
+            breaks = [valueformat(brk) if valueformat else brk
+                      for brk in breaks]
             prevbrk = breaks[0]
             group = SymbolGroup(refcanvas=self.refcanvas, direction=direction, anchor=anchor, title=title, titleoptions=titleoptions, padding=0)
             for i,nextbrk in enumerate(breaks[1:]):
