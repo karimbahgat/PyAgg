@@ -2398,6 +2398,8 @@ class Canvas:
             if self.ppi != 97:
                 options['textsize'] *= self.ppi / 97.0 # human textsize pixel resolution assumes 97 ppi, so must be adjusted for desired ppi
 
+        options['textcolor'] = tuple([int(round(ch)) for ch in options['textcolor']])
+
         def draw_textlines(img, textlines, pos, size, **options):
             PIL_drawer = PIL.ImageDraw.Draw(img)
 
@@ -2435,9 +2437,10 @@ class Canvas:
             if xoffset or yoffset:
                 x,y = xorig,yorig = self._offset_xy((x,y), xoffset, yoffset)
             
-            # get font dimensions
+            # get font and dimensions
             textlines = text.split("\n")
-            font = PIL.ImageFont.truetype(fontlocation, size=options["textsize"]) #, opacity=options["textopacity"])
+            fontsize = int(round(options["textsize"]))
+            font = PIL.ImageFont.truetype(fontlocation, size=fontsize) #, opacity=options["textopacity"])
             widths,heights = zip(*[font.getsize(line) for line in textlines])
             maxwidth, maxheight = max(widths),sum(heights)
             
