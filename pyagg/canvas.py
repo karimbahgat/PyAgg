@@ -1749,7 +1749,7 @@ class Canvas:
         self.drawer.ellipse(bbox, *args)
         self.drawer.settransform(self.coordspace_transform)
 
-    def draw_triangle(self, xy=None, bbox=None, flatratio=1.0, **options):
+    def draw_triangle(self, xy=None, bbox=None, flatratio=1.0, direction=0, **options):
         """
         Draw a triangle, equiangled or otherwise. Either specified with xy and flatratio,
         or with a bbox. 
@@ -1788,7 +1788,15 @@ class Canvas:
         width, height = width / self.width * self.coordspace_width, \
                         height / self.height * self.coordspace_height
         halfwidth, halfheight = width / 2.0, height / 2.0
-        coords = [x-halfwidth,y-halfheight, x+halfwidth,y-halfheight, x,y+halfheight]
+        coords = [(x-halfwidth,y-halfheight), (x+halfwidth,y-halfheight), (x,y+halfheight)]
+
+        # rotate
+        if direction != 0:
+            midx,midy = x,y
+            trans = affine.Affine.translate(midx,midy) * affine.Affine.rotate(direction) * affine.Affine.translate(-midx,-midy)
+            coords = [trans*p for p in coords]
+
+        coords = list(itertools.chain(*coords)) # flat
         self.drawer.polygon(coords, *args)
 
     def draw_pie(self, xy, startangle, endangle, **options):
