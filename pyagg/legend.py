@@ -641,7 +641,7 @@ class GradientSymbol(BaseGroup):
 
         titleoptions = titleoptions or dict()
 
-        defaults = {}#'textsize':'3%max'}
+        defaults = Label('').kwargs #{}#'textsize':'3%max'}
         defaults.update(labeloptions or {})
         labeloptions = defaults
 
@@ -672,16 +672,18 @@ class GradientSymbol(BaseGroup):
             _kwargs['tickoptions']['outlinecolor'] = None
             if direction in 'ew':
                 # overrides any manually specified tickoptions fillwidth/height
-                _kwargs['tickoptions']['fillwidth'] = _kwargs['outlinewidth']
+                _kwargs['tickoptions']['fillwidth'] = _kwargs['outlinewidth'] # actually same for both, fillwidth here means thickness
                 _kwargs['tickoptions']['fillheight'] = _kwargs['outlinewidth'] * 4
             elif direction in 'ns':
                 # overrides any manually specified tickoptions fillwidth/height
-                _kwargs['tickoptions']['fillheight'] = _kwargs['outlinewidth']
-                _kwargs['tickoptions']['fillwidth'] = _kwargs['outlinewidth'] * 4
+                _kwargs['tickoptions']['fillwidth'] = _kwargs['outlinewidth'] # actually same for both, fillwidth here means thickness
+                _kwargs['tickoptions']['fillheight'] = _kwargs['outlinewidth'] * 4
             _axisoptions = {'fillsize':_kwargs['outlinewidth'], 'fillcolor':_kwargs['outlinecolor']}
-            print 'pyagg leg opts', labeloptions
-            _labeloptions = refcanvas._check_text_options(labeloptions) if refcanvas else c._check_text_options(labeloptions)
-            print 'pyagg leg opts 2', _labeloptions
+            _labeloptions = labeloptions
+            if refcanvas and 'textsize' in _labeloptions:
+                _labeloptions['textsize'] = refcanvas._check_text_options(_labeloptions)['textsize']
+                _labeloptions['textsize_is_internal'] = True
+            #_labeloptions = refcanvas._check_text_options(labeloptions) if refcanvas else c._check_text_options(labeloptions)
 
             # set coordspace
             if direction == 'e':
