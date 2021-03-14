@@ -175,12 +175,13 @@ class Label(_Symbol):
 
 
 class _BaseGroup:
-    def __init__(self, items=None, direction="e", padding=0.05, anchor=None, **boxoptions):
+    def __init__(self, refcanvas=None, items=None, direction="e", padding=0.05, anchor=None, **boxoptions):
 
         # TODO: make sure that direction and anchor dont contradict each other, since this leads to weird results
         # eg direction s and anchor n
         # ...
-        
+
+        self.refcanvas = refcanvas
         self.items = list(items) if items else []        
         self.direction = direction
         self.padding = padding
@@ -201,6 +202,8 @@ class _BaseGroup:
         padding = override.get("padding") or self.padding
         anchor = override.get("anchor") or self.anchor
         boxoptions = override.get("boxoptions") or self.boxoptions
+        if self.refcanvas:
+            boxoptions = self.refcanvas._check_options(boxoptions)
 
         rensymbols = [s.render() for s in self.items]
         rensymbols = [s for s in rensymbols if s]
@@ -210,6 +213,11 @@ class _BaseGroup:
         if direction in ("e","w"):
             reqwidth = sum((symbol.width for symbol in rensymbols))
             reqheight = max((symbol.height for symbol in rensymbols))
+
+            # outline
+            if boxoptions['outlinewidth'] and boxoptions['outlinecolor']:
+                reqwidth += boxoptions['outlinewidth']
+                reqheight += boxoptions['outlinewidth']
 
             # padding
             padpx = reqwidth * padding
@@ -235,6 +243,11 @@ class _BaseGroup:
             reqwidth = max((symbol.width for symbol in rensymbols))
             reqheight = sum((symbol.height for symbol in rensymbols))
 
+            # outline
+            if boxoptions['outlinewidth'] and boxoptions['outlinecolor']:
+                reqwidth += boxoptions['outlinewidth']
+                reqheight += boxoptions['outlinewidth']
+
             # padding
             padpx = reqheight * padding
             reqheight += padpx * (len(rensymbols)+1) # also pad start and end
@@ -258,6 +271,11 @@ class _BaseGroup:
         elif direction == "center":
             reqwidth = max((symbol.width for symbol in rensymbols))
             reqheight = max((symbol.height for symbol in rensymbols))
+
+            # outline
+            if boxoptions['outlinewidth'] and boxoptions['outlinecolor']:
+                reqwidth += boxoptions['outlinewidth']
+                reqheight += boxoptions['outlinewidth']
 
             # padding
             padpx = reqwidth * padding # aribtrary here that uses width since goes in two directions
@@ -286,7 +304,7 @@ class _BaseGroup:
         # create the canvas
         # TODO: Need to change, the outline is drawn on standalone canvas, so half of it spills outside
         c = Canvas(reqwidth, reqheight)
-        c.draw_box(bbox=[0,0,reqwidth+0.5,reqheight-1], **boxoptions)
+        c.draw_box(bbox=[0,0,reqwidth,reqheight-1], **boxoptions)
 
         # draw in direction
         #print "drawing group",reqwidth,reqheight
@@ -320,8 +338,11 @@ class _BaseGroup:
 
 
 class BaseGroup(_BaseGroup):
-    # TODO: This is where title should be allowed
-    # all others with titles or labels should inherit from this one
+    # This is a bit special, wrapper for _BaseGroup to only contain 1) title if any, and 2) a sub _BaseGroup for all the items
+    # This is to allow independent 'side' of title visavis items
+    # A bit messy though, might need some reworking...
+    
+    # TODO: All others with titles or labels should inherit from this one?
     # TODO: Label should be expressed as % of symbol maybe???
     # ...
     def __init__(self, refcanvas=None, items=None, title="", titleoptions=None, direction="e", padding=0.01, anchor=None, **boxoptions):
@@ -334,7 +355,7 @@ class BaseGroup(_BaseGroup):
 
         # add a sub basegroup that contains the actual items
         self.refcanvas = refcanvas
-        self._basegroup = obj = _BaseGroup(items=items, direction=direction, padding=padding, anchor=anchor) #, **boxoptions)
+        self._basegroup = obj = _BaseGroup(refcanvas=refcanvas, items=items, direction=direction, padding=padding, anchor=anchor) #, **boxoptions)
         self.items.append(obj)
 
         # title anchor
@@ -626,7 +647,7 @@ class GradientSymbol(BaseGroup):
 
         tickoptions = kwargs.get('tickoptions', {})
         
-        defaults = {'outlinewidth':"0.5%min"}
+        defaults = {'outlinewidth':"0.3%min"}
         defaults.update(kwargs)
         kwargs = defaults
 
@@ -658,7 +679,9 @@ class GradientSymbol(BaseGroup):
                 _kwargs['tickoptions']['fillheight'] = _kwargs['outlinewidth']
                 _kwargs['tickoptions']['fillwidth'] = _kwargs['outlinewidth'] * 4
             _axisoptions = {'fillsize':_kwargs['outlinewidth'], 'fillcolor':_kwargs['outlinecolor']}
+            print 'pyagg leg opts', labeloptions
             _labeloptions = refcanvas._check_text_options(labeloptions) if refcanvas else c._check_text_options(labeloptions)
+            print 'pyagg leg opts 2', _labeloptions
 
             # set coordspace
             if direction == 'e':
@@ -738,7 +761,7 @@ class Legend(BaseGroup):
     def _default_boxoptions(self, **kwargs):
         boxoptions = dict(fillcolor='white',
                           outlinecolor='black',
-                          outlinewidth='3%min')
+                          outlinewidth='0.3%min')
         boxoptions.update(kwargs)
         return boxoptions
 

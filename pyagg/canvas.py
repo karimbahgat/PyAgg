@@ -1792,6 +1792,7 @@ class Canvas:
 
         # rotate
         if direction != 0:
+            # TODO: check that this is correct, doesn't seem to work away from 0 or 180
             midx,midy = x,y
             trans = affine.Affine.translate(midx,midy) * affine.Affine.rotate(direction) * affine.Affine.translate(-midx,-midy)
             coords = [trans*p for p in coords]
