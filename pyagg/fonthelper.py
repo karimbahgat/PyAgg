@@ -48,7 +48,7 @@ def _read_ulong(fileobj):
     return val
 
 def _read_chars(fileobj, n):
-    frmt = endian+bytes(n)+"s"
+    frmt = endian+str(n)+"s"
     raw = fileobj.read(struct.calcsize(frmt))
     (val,) = struct.unpack(frmt, raw)
     return val
@@ -104,7 +104,7 @@ def get_fontname(filepath):
         # find offset to the name table 
         for _ in range(file_header["NumOfTables"]):
             offset_table = _read_offset_table(fileobj)
-            if offset_table["TableName"] == "name":
+            if offset_table["TableName"] == b"name":
                 break
         else:
             raise Exception("Could not find the names table")
@@ -133,11 +133,11 @@ def get_fontname(filepath):
                 fontname = _read_chars(fileobj, record["StringLength"])
 
                 # sometimes the font string has weird byte data in first position and between each character
-                if fontname.startswith("\x00"):
+                if fontname.startswith(b"\x00"):
                     fontname = fontname[1::2]
 
                 #print filepath,record["NameID"],fontname
-                return fontname
+                return str(fontname)
 
 def get_fontpath(font):
     """

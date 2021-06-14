@@ -61,7 +61,7 @@ def gridinterp_near(oldgrid, oldxs, oldys, newxs, newys):
     newwidth = newxmax - newxmin
     newheight = newymax - newymin
     
-    print "newextremes",newxmin,newymin,newxmax,newymax
+    print("newextremes",newxmin,newymin,newxmax,newymax)
 
     # function for determining correct axis orientation
     def increases(values):
@@ -77,7 +77,7 @@ def gridinterp_near(oldgrid, oldxs, oldys, newxs, newys):
     if increases(oldys): oldytop,oldybottom = oldymin,oldymax
     else: oldytop,oldybottom = oldymax,oldymin
 
-    print "oldbbox",oldxleft,oldytop,oldxright,oldybottom
+    print("oldbbox",oldxleft,oldytop,oldxright,oldybottom)
 
     if len(newxs) == len(oldxs) and len(newys) == len(oldys):
         
@@ -151,7 +151,7 @@ def gridinterp_near(oldgrid, oldxs, oldys, newxs, newys):
                 else: newytop,newybottom = newymax,newymin
                 break
 
-        print "newbbox",newxleft,newytop,newxright,newybottom
+        print("newbbox",newxleft,newytop,newxright,newybottom)
 
         # ...
         newxs = (x for x in newxs)
@@ -423,10 +423,10 @@ def img_resize_near(grid, w2, h2):
     newgrid = []
     x_ratio = w1/float(w2)
     y_ratio = h1/float(h2)
-    for i in xrange(0, h2):
+    for i in range(0, h2):
         py = int(i*y_ratio)
         newrow = []
-        for j in xrange(0, w2):
+        for j in range(0, w2):
             px = int(j*x_ratio)
             newval = grid[py][px]
             newrow.append(newval)
@@ -444,11 +444,11 @@ def img_resize_bilinear(grid, w2, h2):
     newgrid = []
     x_ratio = (w-1)/float(w2)
     y_ratio = (h-1)/float(h2)
-    for i in xrange(0, h2):
+    for i in range(0, h2):
         y = int(y_ratio * i)
         y_diff = (y_ratio * i) - y
         newrow = []
-        for j in xrange(0, w2):
+        for j in range(0, w2):
             x = int(x_ratio * j)
             x_diff = (x_ratio * j) - x
             
@@ -516,7 +516,7 @@ if __name__ == "__main__":
     newys = [math.sin(y/100) for y in oldys]
     newgrid = list(gridinterp_near(oldgrid, oldxs, oldys, newxs, newys))
     img = PIL.Image.new("L", (w,h))
-    print len([val for row in newgrid for val in row])
+    print(len([val for row in newgrid for val in row]))
     img.putdata([val for row in newgrid for val in row])
     img.save("new.png")
 

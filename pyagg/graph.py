@@ -204,7 +204,7 @@ class BarChart:
                 valuelabelformat = lambda s: format(s, _frmt)
             
             # loop
-            for barlabel,barvalue in itertools.izip(cdict["barlabels"], cdict["bars"]):
+            for barlabel,barvalue in zip(cdict["barlabels"], cdict["bars"]):
                 flat = [curx,0, curx+self.barwidth,0, curx+self.barwidth,barvalue, curx,barvalue]
                 canvas.draw_polygon(flat, **cdict["options"])
                 if not novaluelabels:

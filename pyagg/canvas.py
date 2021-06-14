@@ -51,6 +51,14 @@ PYVERSION = sys.version[:3]
 if sys.maxsize == 9223372036854775807: PYBITS = "64"
 else: PYBITS = "32"
 
+# PY3 fix
+try: 
+    str = unicode
+    zip = itertools.izip
+    zip_longest = itertools.izip_longest
+except:
+    zip_longest = itertools.zip_longest
+
 
     
 
@@ -64,12 +72,12 @@ else: PYBITS = "32"
 
 def _grouper(iterable, n):
     args = [iter(iterable)] * n
-    return itertools.izip_longest(fillvalue=None, *args)
+    return zip_longest(fillvalue=None, *args)
 
 def _pairwise(iterable):
     a, b = itertools.tee(iterable)
     next(b, None)
-    return itertools.izip(a, b)
+    return zip(a, b)
 
 def _floatrange(start, end, interval):
     # force interval input to be positive
@@ -621,7 +629,7 @@ class Canvas:
         elif xflip: flipfactor = affine.Affine.translate(self.coordspace_width,0) * affine.Affine.flip(xflip, yflip)
         elif yflip: flipfactor = affine.Affine.translate(0,self.coordspace_height) * affine.Affine.flip(xflip, yflip)
         flipped = orig * flipfactor
-        print flipped
+        print(flipped)
         # remember the new coordinate extents and affine matrix
         self.coordspace_transform = flipped.coefficients
         # offset bbox
@@ -1188,7 +1196,7 @@ class Canvas:
                         # get canvas if needed
                         if isinstance(img, Canvas): canvas = img
                         elif isinstance(img, PIL.Image.Image): canvas = from_image(img)
-                        elif isinstance(img, str): canvas = load(img)
+                        elif isinstance(img, (bytes,str)): canvas = load(img)
                         if canvas:
                             # resize subimg
                             canvas.resize(pastewidth, pasteheight, lock_ratio=lock_ratio, fit=fit)
@@ -1208,7 +1216,7 @@ class Canvas:
                         # get canvas if needed
                         if isinstance(img, Canvas): canvas = img
                         elif isinstance(img, PIL.Image.Image): canvas = from_image(img)
-                        elif isinstance(img, str): canvas = load(img)
+                        elif isinstance(img, (bytes,str)): canvas = load(img)
                         if canvas:
                             # resize subimg
                             canvas.resize(pastewidth, pasteheight, lock_ratio=lock_ratio, fit=fit)
@@ -1349,7 +1357,7 @@ class Canvas:
                 ticklabelformat = ".1f"
             else:
                 ticklabelformat = ".0f"
-        if isinstance(ticklabelformat, str):
+        if isinstance(ticklabelformat, (bytes,str)):
             _frmt = ticklabelformat
             ticklabelformat = lambda s: format(s, _frmt)
         if not tickinterval:
@@ -1937,7 +1945,7 @@ class Canvas:
                 next(b, None)
                 next(c, None)
                 next(c, None)
-                return itertools.izip(a,b,c)
+                return zip(a,b,c)
 
             def bufferedlinesegments():
                 if len(coords) == 2:
@@ -2398,7 +2406,7 @@ class Canvas:
         if not text:
             return False
 
-        if not isinstance(text, (unicode,str)):
+        if not isinstance(text, str):
             text = str(text)
         
         options = self._check_text_options(options)
@@ -2934,7 +2942,7 @@ class Canvas:
         
         # colors
         if "fillcolor" not in customoptions:
-            customoptions["fillcolor"] = tuple([random.randrange(0,255) for _ in xrange(3)])
+            customoptions["fillcolor"] = tuple([random.randrange(0,255) for _ in range(3)])
         if "outlinecolor" not in customoptions:
             customoptions["outlinecolor"] = (0,0,0)
 
@@ -3044,7 +3052,7 @@ class Canvas:
         finaloptions = self.textoptions.copy()
         finaloptions.update(customoptions)
 
-        if isinstance(finaloptions["textsize"], str):
+        if isinstance(finaloptions["textsize"], (bytes,str)):
             finaloptions["textsize"] = parse_textsize(finaloptions["textsize"], font=finaloptions["font"])
             finaloptions["textsize_is_internal"] = True
             

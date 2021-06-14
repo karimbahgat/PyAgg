@@ -4,6 +4,12 @@ Canvas subclass specializing in being a Legend showing assigned symbology.
 
 from .canvas import Canvas
 
+# PY3 fix
+try: 
+    str = unicode
+except NameError:
+    pass
+
 
 #######
 
@@ -155,7 +161,7 @@ class Label(_Symbol):
         from . import fonthelper
         fontlocation = fonthelper.get_fontpath(info["font"])
         font = PIL.ImageFont.truetype(fontlocation, size=info["textsize"])
-        text = self.text if isinstance(self.text, (unicode,str)) else str(self.text)
+        text = self.text if isinstance(self.text, str) else str(self.text)
         textlines = text.split("\n")
         widths,heights = zip(*[font.getsize(line) for line in textlines])
         reqwidth, reqheight = max(widths),sum(heights)
@@ -519,7 +525,7 @@ class BaseGroup(_BaseGroup):
             breaks = [valueformat(brk) if valueformat else brk
                       for brk in breaks]
             classvalues = [classvalues[0], classvalues[-1]]
-            for brk,classval in sorted(zip(breaks, classvalues), key=lambda(b,cv): cv, reverse=True):
+            for brk,classval in sorted(zip(breaks, classvalues), key=lambda b_cv: b_cv[1], reverse=True):
                 _symboloptions = dict(symboloptions)
                 _symboloptions.update(fillsize=classval)
                 obj = FillSizeSymbol(shape=shape,

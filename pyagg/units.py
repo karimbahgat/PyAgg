@@ -4,6 +4,14 @@ to pixels.
 Mostly used internally. 
 """
 
+# PY3 fix
+try: 
+    basestring
+except NameError:
+    basestring = (bytes,str) # PY3
+
+    
+
 def px_to_px(diststring):
     diststring = diststring.replace("px", "")
     pixels = eval(diststring)
