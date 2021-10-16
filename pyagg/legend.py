@@ -419,6 +419,17 @@ class BaseGroup(_BaseGroup):
         # ...
 
         labeloptions = labeloptions or dict()
+
+        if not valueformat:
+            minval = min(breaks)
+            maxval = max(breaks)
+            valrange = maxval - minval
+            if valrange <= 1:
+                valueformat = ".3f"
+            elif valrange <= 10:
+                valueformat = ".1f"
+            else:
+                valueformat = ".0f"
         
         if valueformat:
             # can be callable or formatstring
@@ -513,6 +524,17 @@ class BaseGroup(_BaseGroup):
     def add_fillsizes(self, shape, breaks, classvalues, valuetype="discrete", valueformat=None, direction="s", anchor="w", title="", titleoptions=None, padding=0, labeloptions=None, **symboloptions):
         
         labeloptions = labeloptions or dict()
+
+        if not valueformat:
+            minval = min(breaks)
+            maxval = max(breaks)
+            valrange = maxval - minval
+            if valrange <= 1:
+                valueformat = ".3f"
+            elif valrange <= 10:
+                valueformat = ".1f"
+            else:
+                valueformat = ".0f"
 
         if valueformat:
             # can be callable or formatstring

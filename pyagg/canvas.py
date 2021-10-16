@@ -96,6 +96,22 @@ def _floatrange(start, end, interval):
             yield cur
             cur -= interval
 
+def _anchor_offset(x, y, anchor, size):
+    # update to post-rotate anchor
+    itemwidth,itemheight = size
+    if anchor == "center":
+        pass
+    else:
+        if "n" in anchor:
+            y = int(y + itemheight/2.0)
+        elif "s" in anchor:
+            y = int(y - itemheight/2.0)
+        if "e" in anchor:
+            x = int(x - itemwidth/2.0)
+        elif "w" in anchor:
+            x = int(x + itemwidth/2.0)
+    return x,y
+
 class _Line:
     def __init__(self, x1,y1,x2,y2):
         self.x1,self.y1,self.x2,self.y2 = x1,y1,x2,y2
@@ -1743,9 +1759,16 @@ class Canvas:
             fillsize = options["fillsize"]
             width = options["fillwidth"]
             height = options["fillheight"]
+
 ##            width, height = width / self.width * self.coordspace_width, \
 ##                            height / self.height * self.coordspace_height
+
             if flatratio: height *= flatratio
+
+            anchor = options.get("anchor")
+            if anchor:
+                x,y = _anchor_offset(x, y, anchor.lower(), (width,height))
+
             halfwidth, halfheight = width / 2.0, height / 2.0
             bbox = [x-halfwidth, y-halfheight, x+halfwidth, y+halfheight]
         
@@ -1795,6 +1818,11 @@ class Canvas:
 
         width, height = width / self.width * self.coordspace_width, \
                         height / self.height * self.coordspace_height
+
+        anchor = options.get('anchor')
+        if xy and anchor:
+            x,y = _anchor_offset(x, y, anchor.lower(), (width,height))
+
         halfwidth, halfheight = width / 2.0, height / 2.0
         coords = [(x-halfwidth,y-halfheight), (x+halfwidth,y-halfheight), (x,y+halfheight)]
 
@@ -1875,6 +1903,11 @@ class Canvas:
             if flatratio: height *= flatratio
             width, height = width / self.width * self.coordspace_width, \
                             height / self.height * self.coordspace_height
+
+            anchor = options.get("anchor")
+            if anchor:
+                x,y = _anchor_offset(x, y, anchor.lower(), (width,height))
+
             halfwidth, halfheight = width / 2.0, height / 2.0
             bbox = [x-halfwidth, y-halfheight, x+halfwidth, y+halfheight]
         
