@@ -40,11 +40,13 @@ class _Symbol:
             # symbol is specified with the canvas method type and args (more convenient)
             if self.refcanvas:
                 # dimensions autoretrieved and converted to pixels from refcanvas
-                info = dict(self.refcanvas._check_options(kwargs))
                 if self.type == "line":
-                    reqheight = info["fillsize"]
-                    reqwidth = reqheight * 5  # 5 times longer to look like a line
+                    kwargs["fillwidth"] = kwargs.get("fillwidth", '5%min') # line length
+                    info = dict(self.refcanvas._check_options(kwargs))
+                    reqwidth = info["fillwidth"]
+                    reqheight = info["fillheight"] / 2.0 # for some reason the height of a box is twice the size of the corresponding outlinewidth
                 else:
+                    info = dict(self.refcanvas._check_options(kwargs))
                     reqwidth = info["fillwidth"]
                     reqheight = info["fillheight"]
             else:
@@ -58,8 +60,8 @@ class _Symbol:
                 elif self.type in ("circle","pie"):
                     reqwidth,reqheight = info["fillwidth"]*2,info["fillheight"]*2
                 elif self.type == "line":
-                    reqheight = info["fillsize"]
-                    reqwidth = reqheight * 5  # 5 times longer to look like a line
+                    reqheight = info["fillheight"] # line thickness
+                    reqwidth = info["fillwidth"] # line length
                 elif self.type == "polygon":
                     reqheight = info["fillheight"]
                     reqwidth = info["fillwidth"]
@@ -427,7 +429,7 @@ class BaseGroup(_BaseGroup):
                 valueformat = lambda val: format(val, frmtstring)
 
         if valuetype == "proportional":
-            # TODO: maybe also proportional sizes....
+            ## creates a color scalebar gradient
             if not "side" in labeloptions: labeloptions["side"] = "e" # not sure what does...?
             _symboloptions = dict(symboloptions)
             # TODO: symgroup south dir makes correct, but same dir goes kookoo...
@@ -451,6 +453,7 @@ class BaseGroup(_BaseGroup):
             self.add_item(group)
             
         elif valuetype == "continuous":
+            ## creates a continuous set of distinct colors immediately next to each other
             if not "side" in labeloptions: labeloptions["side"] = "e" # not sure what does...?
             breaks = [valueformat(brk) if valueformat else brk
                       for brk in breaks]
@@ -469,6 +472,7 @@ class BaseGroup(_BaseGroup):
             self.add_item(group)
             
         elif valuetype == "discrete":
+            ## creates a discrete set of distinct colors with spacing between
             if not "side" in labeloptions: labeloptions["side"] = "e" # not sure what does...?
             breaks = [valueformat(brk) if valueformat else brk
                       for brk in breaks]
@@ -487,6 +491,7 @@ class BaseGroup(_BaseGroup):
             self.add_item(group)
 
         elif valuetype == "categorical":
+            # same as discrete i think? 
             if not "side" in labeloptions: labeloptions["side"] = "e" # not sure what does...?
             breaks = [valueformat(brk) if valueformat else brk
                       for brk in breaks]
@@ -518,6 +523,8 @@ class BaseGroup(_BaseGroup):
                 valueformat = lambda val: format(val, frmtstring)
 
         if valuetype == "proportional":
+            ## creates overlapping minimum and maximum size symbols
+            ## to show the min-max range of proportional size values
             # TODO: Experimental, not fully tested...
             if not "side" in labeloptions: labeloptions["side"] = "n" 
             group = SymbolGroup(refcanvas=self.refcanvas, direction="center", anchor="s", title=title, titleoptions=titleoptions, padding=0) # for continuous, sizes stay in one place
@@ -537,6 +544,7 @@ class BaseGroup(_BaseGroup):
             self.add_item(group)
 
         elif valuetype == "continuous":
+            ## creates overlapping sets of multiple continuous size steps
             if not "side" in labeloptions: labeloptions["side"] = "e"
             breaks = [valueformat(brk) if valueformat else brk
                       for brk in breaks]
@@ -555,6 +563,7 @@ class BaseGroup(_BaseGroup):
             self.add_item(group)
             
         elif valuetype == "discrete":
+            ## creates discrete standalone size shapes
             if not "side" in labeloptions: labeloptions["side"] = "e"
             breaks = [valueformat(brk) if valueformat else brk
                       for brk in breaks]
