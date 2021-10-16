@@ -34,11 +34,29 @@ class BaseTestCases:
             self.canvas.draw_box(xy=(50,50), **self.kwargs)
             self.save_canvas('box')
 
-        def test_triangle(self):
+        def test_triangle_0(self):
             self.create_canvas()
             print(self.kwargs)
-            self.canvas.draw_triangle(xy=(50,50), **self.kwargs)
-            self.save_canvas('triangle')
+            self.canvas.draw_triangle(xy=(50,50), direction=0, **self.kwargs)
+            self.save_canvas('triangle_0')
+
+        def test_triangle_90(self):
+            self.create_canvas()
+            print(self.kwargs)
+            self.canvas.draw_triangle(xy=(50,50), direction=90, **self.kwargs)
+            self.save_canvas('triangle_90')
+
+        def test_triangle_180(self):
+            self.create_canvas()
+            print(self.kwargs)
+            self.canvas.draw_triangle(xy=(50,50), direction=180, **self.kwargs)
+            self.save_canvas('triangle_180')
+
+        def test_triangle_270(self):
+            self.create_canvas()
+            print(self.kwargs)
+            self.canvas.draw_triangle(xy=(50,50), direction=270, **self.kwargs)
+            self.save_canvas('triangle_270')
 
 # anchors
 
@@ -48,7 +66,7 @@ class TestAnchorDefault(BaseTestCases.DrawShapes):
     def __init__(self, *args, **kwargs):
         super(BaseTestCases.DrawShapes, self).__init__(*args, **kwargs)
         self.kwargs = self.kwargs.copy()
-        extra = {'fillsize': '5pt'}
+        extra = {'fillsize': '25%w'}
         self.kwargs.update(extra)
 
 class TestAnchorCenter(BaseTestCases.DrawShapes):
@@ -57,7 +75,7 @@ class TestAnchorCenter(BaseTestCases.DrawShapes):
     def __init__(self, *args, **kwargs):
         super(BaseTestCases.DrawShapes, self).__init__(*args, **kwargs)
         self.kwargs = self.kwargs.copy()
-        extra = {'fillsize': '5pt',
+        extra = {'fillsize': '25%w',
                 'anchor':'center'}
         self.kwargs.update(extra)
 
@@ -67,7 +85,7 @@ class TestAnchorNW(BaseTestCases.DrawShapes):
     def __init__(self, *args, **kwargs):
         super(BaseTestCases.DrawShapes, self).__init__(*args, **kwargs)
         self.kwargs = self.kwargs.copy()
-        extra = {'fillsize': '5pt',
+        extra = {'fillsize': '25%w',
                 'anchor':'nw'}
         self.kwargs.update(extra)
 
@@ -77,7 +95,7 @@ class TestAnchorNE(BaseTestCases.DrawShapes):
     def __init__(self, *args, **kwargs):
         super(BaseTestCases.DrawShapes, self).__init__(*args, **kwargs)
         self.kwargs = self.kwargs.copy()
-        extra = {'fillsize': '5pt',
+        extra = {'fillsize': '25%w',
                 'anchor':'ne'}
         self.kwargs.update(extra)
 
@@ -87,7 +105,7 @@ class TestAnchorSE(BaseTestCases.DrawShapes):
     def __init__(self, *args, **kwargs):
         super(BaseTestCases.DrawShapes, self).__init__(*args, **kwargs)
         self.kwargs = self.kwargs.copy()
-        extra = {'fillsize': '5pt',
+        extra = {'fillsize': '25%w',
                 'anchor':'se'}
         self.kwargs.update(extra)
 
@@ -97,7 +115,7 @@ class TestAnchorSW(BaseTestCases.DrawShapes):
     def __init__(self, *args, **kwargs):
         super(BaseTestCases.DrawShapes, self).__init__(*args, **kwargs)
         self.kwargs = self.kwargs.copy()
-        extra = {'fillsize': '5pt',
+        extra = {'fillsize': '25%w',
                 'anchor':'sw'}
         self.kwargs.update(extra)
 

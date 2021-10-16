@@ -1780,16 +1780,17 @@ class Canvas:
         self.drawer.ellipse(bbox, *args)
         self.drawer.settransform(self.coordspace_transform)
 
-    def draw_triangle(self, xy=None, bbox=None, flatratio=1.0, direction=0, **options):
+    def draw_triangle(self, xy=None, bbox=None, flatratio=3.0/4.0, direction=0, **options):
         """
-        Draw a triangle, equiangled or otherwise. Either specified with xy and flatratio,
-        or with a bbox. 
+        Draw a triangle, equilateral or otherwise. Either specified with xy and flatratio,
+        or with a bbox. The default is a regular equilateral triangle, specified using a flatratio of 3/4
+        or a bbox height 3/4 the size of the width. 
 
         Parameters:
 
         - *xy* (optional): Xy center coordinate to place the triangle. 
         - *bbox* (optional): Bounding box of the flattened triangle instead of xy coordinate. 
-        - *flatratio* (optional): The ratio of the triangle height to width. A normal triangle is given with 1.0 (default) and a half-flat triangle with 0.5. 
+        - *flatratio* (optional): The ratio of the triangle height to width. A regular equilateral triangle is given as 3/4 (default). 
         - *options* (optional): Keyword args dictionary of draw styling options. 
         """
         options = self._check_options(options)
