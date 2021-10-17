@@ -220,7 +220,7 @@ class _Line:
             elif self.ydiff > 0:
                 angle = 270
             else:
-                raise TypeError("error: the vector isnt moving anywhere, so has no angle")
+                raise TypeError("error: the vector {} isnt moving anywhere, so has no angle".format(str(self)))
         if angle < 0:
             angle = 360+angle
         return angle
@@ -1951,9 +1951,12 @@ class Canvas:
                 prev = point
 
         # convert coords to pixels and temp disable transform bc all buffers etc have already been converted to pixels
-        uniq = list(uniquecoords())
-        coords = (self.coord2pixel(*xy) for xy in uniq)
-        self.drawer.settransform() 
+        coords = (self.coord2pixel(*xy) for xy in coords)
+        coords = list(uniquecoords())
+        if len(coords) <= 1:
+            # all coords are the same in pixelspace, ie fall within a single pixel, ignore? 
+            return
+        self.drawer.settransform()
 
         if volume or (options.get("outlinecolor") and options.get("outlinewidth")):
             # enables outline and varying line volume thickness
