@@ -39,6 +39,12 @@ class BaseTestCases:
             self.canvas.draw_line([(5,50),(95,50)], **self.kwargs)
             self.save_canvas('line')
 
+        def test_pie(self):
+            self.create_canvas()
+            print(self.kwargs)
+            self.canvas.draw_pie(xy=(50,50), startangle=0, endangle=180-30, **self.kwargs)
+            self.save_canvas('pie')
+
 # px
 
 class TestFillPixelUnits(BaseTestCases.DrawShapes):

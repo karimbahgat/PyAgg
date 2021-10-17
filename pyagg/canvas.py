@@ -1853,6 +1853,12 @@ class Canvas:
         x,y = xy
         x,y = self.coord2pixel(x,y)
         fillsize = options["fillsize"]
+
+        width = height = fillsize * 2
+        anchor = options.get('anchor')
+        if xy and anchor:
+            x,y = _anchor_offset(x, y, anchor.lower(), (width,height))
+
         bbox = [x-fillsize, y-fillsize, x+fillsize, y+fillsize]
         args = []
         if options["outlinecolor"]:
@@ -1956,6 +1962,7 @@ class Canvas:
         if len(coords) <= 1:
             # all coords are the same in pixelspace, ie fall within a single pixel, ignore? 
             return
+        coords = (xy for xy in coords)
         self.drawer.settransform()
 
         if volume or (options.get("outlinecolor") and options.get("outlinewidth")):

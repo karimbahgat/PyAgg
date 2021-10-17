@@ -58,6 +58,12 @@ class BaseTestCases:
             self.canvas.draw_triangle(xy=(50,50), direction=270, **self.kwargs)
             self.save_canvas('triangle_270')
 
+        def test_pie(self):
+            self.create_canvas()
+            print(self.kwargs)
+            self.canvas.draw_pie(xy=(50,50), startangle=0, endangle=180-30, **self.kwargs)
+            self.save_canvas('pie')
+
 # anchors
 
 class TestAnchorDefault(BaseTestCases.DrawShapes):
