@@ -1941,8 +1941,18 @@ class Canvas:
             coords = _grouper(coords, 2)
         else: coords = (point for point in coords)
 
+        # remove duplicate points
+        def uniquecoords():
+            prev = None
+            for point in coords:
+                if point == prev:
+                    continue
+                yield point
+                prev = point
+
         # convert coords to pixels and temp disable transform bc all buffers etc have already been converted to pixels
-        coords = (self.coord2pixel(*xy) for xy in coords)
+        uniq = list(uniquecoords())
+        coords = (self.coord2pixel(*xy) for xy in uniq)
         self.drawer.settransform() 
 
         if volume or (options.get("outlinecolor") and options.get("outlinewidth")):
@@ -2016,10 +2026,14 @@ class Canvas:
                         line2_left,line2_right = line2.getbuffersides(linebuffer=buffersize)
                         midleft = line1_left.intersect(line2_left, infinite=True)
                         midright = line1_right.intersect(line2_right, infinite=True)
-                        if not midleft or not midright:
-                            #PROB FLOAT ERROR,SO NO INTERSECTION FOUND
-                            #CURRENTLY JUST SKIP DRAWING,BUT NEED BETTER HANDLING
-                            raise Exception("Unexpected error")
+                        if not midleft:
+                            # line1 and line2 do not intersect because they are on the same line
+                            # their intersection thus becomes their shared start/end point
+                            midleft = line1_left.end
+                        if not midright:
+                            # line1 and line2 do not intersect because they are on the same line
+                            # their intersection thus becomes their shared start/end point
+                            midright = line1_right.end
 
                         # yield each line segment one at a time, so they are drawn in correct order if overlap
                         leftside = [prevleft,midleft]
@@ -2043,8 +2057,8 @@ class Canvas:
                     rightside = [prevright,rightlineend]
                     yield leftside, rightside
 
-            if smooth:
-                # TODO: add support for simple 2point line
+            if smooth and len(coords) > 2:
+                # Note: simple 2point line is skipped here and processed as a non-smooth line
                 
                 pen,brush = aggdraw.Pen(options["outlinecolor"], options["outlinewidth"]), aggdraw.Brush(options["fillcolor"])
 
@@ -2137,8 +2151,8 @@ class Canvas:
                 self.drawer.symbol((0,0), symbol, pen, None)
 
                 lastline = coords[-2:]
-                lastleft = left2[1]
-                lastright = right2[1]
+                lastleft = left2
+                lastright = right2
 
             else:
                 # not smooth
