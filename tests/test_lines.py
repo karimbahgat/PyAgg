@@ -143,6 +143,48 @@ class TestSmoothLineOutlineOnly(BaseTestCases.DrawLines):
         extra = {'smooth':True, 'fillcolor':None, 'outlinecolor':'black'}
         self.kwargs.update(extra)
 
+# smooth volume line options
+
+def volume(prog, x, y): 
+    perc = 2 + prog*10
+    return '{}%w'.format(perc)
+
+class TestSmoothVolumeLineFillOutline(BaseTestCases.DrawLines):
+
+    def __init__(self, *args, **kwargs):
+        super(BaseTestCases.DrawLines, self).__init__(*args, **kwargs)
+        self.output_prefix += '_smoothvolume_fill_outline'
+        self.kwargs = self.kwargs.copy()
+        extra = {'smooth':True, 'volume':volume, 'fillcolor':'yellow', 'outlinecolor':'black'}
+        self.kwargs.update(extra)
+
+class TestSmoothVolumeLineFillOutlineArrow(BaseTestCases.DrawLines):
+
+    def __init__(self, *args, **kwargs):
+        super(BaseTestCases.DrawLines, self).__init__(*args, **kwargs)
+        self.output_prefix += '_smoothvolume_fill_outline_arrow'
+        self.kwargs = self.kwargs.copy()
+        extra = {'smooth':True, 'volume':volume, 'end':'arrow', 'fillcolor':'yellow', 'outlinecolor':'black'}
+        self.kwargs.update(extra)
+
+class TestSmoothVolumeLineFillOnly(BaseTestCases.DrawLines):
+
+    def __init__(self, *args, **kwargs):
+        super(BaseTestCases.DrawLines, self).__init__(*args, **kwargs)
+        self.output_prefix += '_smoothvolume_fill_only'
+        self.kwargs = self.kwargs.copy()
+        extra = {'smooth':True, 'volume':volume, 'fillcolor':'yellow', 'outlinecolor':None}
+        self.kwargs.update(extra)
+
+class TestSmoothVolumeLineOutlineOnly(BaseTestCases.DrawLines):
+
+    def __init__(self, *args, **kwargs):
+        super(BaseTestCases.DrawLines, self).__init__(*args, **kwargs)
+        self.output_prefix += '_smoothvolume_outline_only'
+        self.kwargs = self.kwargs.copy()
+        extra = {'smooth':True, 'volume':volume, 'fillcolor':None, 'outlinecolor':'black'}
+        self.kwargs.update(extra)
+
 
 if __name__ == '__main__':
     unittest.main()
