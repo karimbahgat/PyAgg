@@ -137,7 +137,7 @@ def get_fontname(filepath):
                     fontname = fontname[1::2]
 
                 #print filepath,record["NameID"],fontname
-                return str(fontname)
+                return fontname.decode('utf8')
 
 def get_fontpath(font):
     """
@@ -152,11 +152,11 @@ def get_fontpath(font):
         return font
     # or try to get from filename in font folder
     else:
-        for filepath in list(SYSFONTS.values()) + [LIBFONTFOLDER]:
+        for filepath in list(SYSFONTS.values()): # + [LIBFONTFOLDER]:
             if filepath.endswith(font):
                 return filepath
     # raise error if hasnt succeeded yet
-    raise Exception("Could not find the font specified. Font must be either a human-readable name, a filename with extension in the default font folder, or a full path to the font file location")
+    raise Exception("Could not find the font specified. Font must be either a human-readable name, a filename with extension in the default font folder, or a full path to the font file location, not: {}".format(font))
 
 def load_sysfonts():
     """
@@ -171,7 +171,7 @@ def load_sysfonts():
                           if filename.lower().endswith(".ttf")])
     fontnames = dict()
     for filename,filepath in fontfilenames.items():
-        fontname = get_fontname(filepath)
+        #fontname = get_fontname(filepath)
         try:
             fontname = get_fontname(filepath)
             fontnames.update([(fontname.lower(), filepath)])
