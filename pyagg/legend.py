@@ -78,6 +78,11 @@ class _Symbol:
             reqwidth += outlinewidth * 2
             reqheight += outlinewidth * 2
 
+            # add defaults for shapes requiring extra kwargs
+            if self.type == 'pie':
+                kwargs['startangle'] = kwargs.get('startangle', 0)
+                kwargs['endangle'] = kwargs.get('endangle', 110)
+
         # create canvas and draw
         c = Canvas(width=reqwidth, height=reqheight)
         c.set_default_unit("px")
