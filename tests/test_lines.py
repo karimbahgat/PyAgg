@@ -10,7 +10,7 @@ class BaseTestCases:
     class DrawLines(unittest.TestCase):
         width = 200
         height = 200
-        kwargs = {'fillsize':'5pt', 'outlinewidth':'1pt'}
+        kwargs = {'fillsize':'2pt', 'outlinewidth':'0.1pt'}
         output_prefix = 'lines'
 
         def create_canvas(self):
@@ -56,6 +56,15 @@ class BaseTestCases:
             line = [(10,50),(50,50),(50,50),(90,90)]
             self.canvas.draw_line(line, **self.kwargs)
             self.save_canvas('bend_duplicates')
+
+        def test_random(self):
+            self.create_canvas()
+            print(self.kwargs)
+            from random import randint, seed
+            seed(16)
+            line = [(randint(0,100),randint(0,100)) for _ in range(50)]
+            self.canvas.draw_line(line, **self.kwargs)
+            self.save_canvas('random')
 
 
 # basic line options

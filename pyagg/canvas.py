@@ -2335,6 +2335,32 @@ class Canvas:
         # reinstate the drawtransform
         self.drawer.settransform(self.coordspace_transform)
 
+    def draw_line2(self, coords, smooth=False, volume=None, start="flat", end="flat", **options):
+        """
+        Connect a series of coordinate points with one or more lines.
+        Outline does not work with this method.
+
+        Parameters:
+
+        - *coords*: A list of coordinates for the linesequence.
+        - *smooth* (optional): If True, smooths the lines by drawing quadratic bezier curves between midpoints of each line segment. Default is False.
+        - *options* (optional): Keyword args dictionary of draw styling options. 
+        """
+        # This is a draft of the new much simpler and correct line drawing.
+        # Draws using the outline options, fill options are ignored.
+        # Line outlines must be simulated by drawing a thicker line underneath.
+        # Smooth and volume will have to be added later. 
+        options = self._check_options(options)
+        
+        if not hasattr(coords[0], "__iter__"):
+            coords = _grouper(coords, 2)
+        else: coords = (point for point in coords)
+
+        if options['outlinecolor'] and options['outlinewidth']:
+            pen = aggdraw.Pen(options["outlinecolor"], options["outlinewidth"])
+            flatcoords = [xory for p in coords for xory in p]
+            self.drawer.line(flatcoords, pen)
+
     def draw_polygon(self, coords, holes=[], **options):
         """
         Draw polygon and holes with color fill.
