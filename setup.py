@@ -13,6 +13,7 @@ setup(	long_description=open("README.rst").read(),
 	keywords="""graphics rendering drawing visualization imaging AGG aggdraw""",
 	packages=['pyagg'],
 	install_requires=['Pillow', 'aggdraw'],
+      	python_requires='==2.7',
 	classifiers=['License :: OSI Approved', 'Programming Language :: Python', 'Development Status :: 4 - Beta', 'Intended Audience :: Developers', 'Intended Audience :: Science/Research', 'Intended Audience :: End Users/Desktop', 'Topic :: Scientific/Engineering :: Visualization', 'Topic :: Multimedia :: Graphics', 'Topic :: Scientific/Engineering :: GIS'],
 	description="""Simple user-oriented graphics drawing and image manipulation.""",
 	)
